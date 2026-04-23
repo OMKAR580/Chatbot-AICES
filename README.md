@@ -1,6 +1,20 @@
 # AICES — Adaptive Concept Studio
 
+[![GitHub](https://img.shields.io/badge/GitHub-OMKAR580%2FChatbot--AICES-blue?logo=github)](https://github.com/OMKAR580/Chatbot-AICES)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)](https://www.python.org/)
+[![React](https://img.shields.io/badge/React-18%2B-blue?logo=react)](https://react.dev)
+
 An AI-powered adaptive learning chatbot that dynamically adjusts to each learner's pace and comprehension level.
+
+## 🌐 Live Demo
+
+| Platform | Link | Status |
+|----------|------|--------|
+| **Frontend** | [Vercel](https://vercel.com) *(Deploy to get link)* | ⏳ Ready to deploy |
+| **Backend** | [Render](https://render.com) *(Deploy to get link)* | ⏳ Ready to deploy |
+
+**Quick Deploy:** See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step guides
 
 ## Features
 
