@@ -5,7 +5,11 @@ import os
 import re
 from typing import Any
 
+from dotenv import load_dotenv
 from openai import OpenAI
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")
