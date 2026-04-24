@@ -22,7 +22,7 @@ from backend.services.ai_service import (
     normalize_code_language,
     normalize_response_mode,
 )
-from backend.services.topic_utils import clean_core_topic
+from backend.services.topic_utils import clean_core_topic, extract_topic, normalize_topic_text
 
 
 router = APIRouter()
@@ -160,8 +160,11 @@ REQUEST_TRACKERS: dict[str, ChatRequestTracker] = {}
 
 def extract_topic(message: str) -> str:
     """Return only the concept/topic, without prompt or mode wording."""
+    print(f"[CHAT ENDPOINT] Extracting topic from original message: '{message}'")
     topics, _ = parse_chat_intent(message=message)
-    return topics[0] if len(topics) == 1 else ""
+    extracted_topic = topics[0] if len(topics) == 1 else ""
+    print(f"[CHAT ENDPOINT] Extracted topic: '{extracted_topic}'")
+    return extracted_topic
 
 
 def parse_chat_intent(
@@ -412,6 +415,7 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
     if not should_process:
         return _wait_for_tracked_response(request_id, tracker)
 
+    resolved_language = normalize_language(None)
     try:
         print(
             "[CHAT REQUEST] "
@@ -434,11 +438,22 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
             )
             raise
 
+        resolved_language = normalize_language(user.preferred_language)
         level = get_user_level(db=db, user_id=user.user_id)
-        topics, intent = parse_chat_intent(
+        
+        # Use clean keyword-based topic extraction
+        detected_topic = extract_topic(message)
+        
+        # If user provided an explicit topic, use that instead
+        if payload.topic:
+            detected_topic = extract_topic(payload.topic)
+        
+        # Parse intent for mode, depth, response preferences (not for topic)
+        _, intent = parse_chat_intent(
             message=message,
             requested_topic=payload.topic,
         )
+        
         mode = intent.mode if payload.mode == "standard" else payload.mode
         response_mode = normalize_response_mode(
             intent.response_mode if payload.response_mode == "auto" else payload.response_mode
@@ -456,12 +471,14 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
             response_mode=response_mode,
         )
 
-        if not topics:
+        # Check if topic is unclear (empty string)
+        if not detected_topic:
             response = schemas.ChatResponse(
                 response=UNCLEAR_TOPIC_RESPONSE,
+                explanation=UNCLEAR_TOPIC_RESPONSE,
                 level=level,
                 topic="",
-                language=normalize_language(intent.language or user.preferred_language),
+                language=resolved_language,
                 mode=mode,
                 response_depth=response_depth,
                 response_mode=response_mode,
@@ -470,22 +487,9 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
             _complete_request_tracker(request_id, response=response)
             return response
 
-        if len(topics) > 1:
-            response = schemas.ChatResponse(
-                response=MULTI_TOPIC_RESPONSE,
-                level=level,
-                topic="",
-                language=normalize_language(intent.language or user.preferred_language),
-                mode=mode,
-                response_depth=response_depth,
-                response_mode=response_mode,
-                request_id=request_id,
-            )
-            _complete_request_tracker(request_id, response=response)
-            return response
-
-        topic = topics[0]
-        language = normalize_language(intent.language or user.preferred_language)
+        topic = detected_topic
+        language = normalize_language(user.preferred_language)
+        resolved_language = language
         weak_areas = _get_topic_weak_areas(db=db, user_id=user.user_id, topic=topic)
         print(
             "[CHAT RESOLVED] "
@@ -542,7 +546,7 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
             db.add(
                 models.ChatHistory(
                     user_id=user.user_id,
-                    topic=topic.strip().lower(),
+                    topic=normalize_topic_text(topic, fallback="topic").strip().lower(),
                     user_message=message,
                     ai_response=explanation,
                     learner_level=level,
@@ -559,6 +563,7 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
 
         response = schemas.ChatResponse(
             response=explanation,
+            explanation=explanation,
             level=level,
             topic=topic,
             language=language,
@@ -583,9 +588,10 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
         print(f"[CRITICAL ERROR] request_id={request_id}, error_type={type(exc).__name__}")
         fallback_response = schemas.ChatResponse(
             response="Request failed. Please check backend logs.",
+            explanation="Request failed. Please check backend logs.",
             level="beginner",
-            topic=payload.topic or "general",
-            language="English",
+            topic=normalize_topic_text(payload.topic or "general", fallback="general"),
+            language=resolved_language,
             mode="standard",
             response_depth="normal",
             response_mode="auto",

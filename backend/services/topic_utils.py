@@ -6,7 +6,12 @@ import re
 TOPIC_NORMALIZATION_PATTERNS = (
     (re.compile(r"\bdeepth\b", flags=re.IGNORECASE), "depth"),
     (re.compile(r"\bdeeply\b", flags=re.IGNORECASE), "depth"),
+    (re.compile(r"\brobability\b", flags=re.IGNORECASE), "probability"),
+    (re.compile(r"\bprobablity\b", flags=re.IGNORECASE), "probability"),
+    (re.compile(r"\bprobabilty\b", flags=re.IGNORECASE), "probability"),
+    (re.compile(r"\bprobabilities\b", flags=re.IGNORECASE), "probability"),
     (re.compile(r"\blinked[\s-]*lists?\b", flags=re.IGNORECASE), "linked list"),
+    (re.compile(r"\blinkedlist\b", flags=re.IGNORECASE), "linked list"),
     (re.compile(r"\bbinary[\s-]*search(?:ing)?\b", flags=re.IGNORECASE), "binary search"),
     (re.compile(r"\bconvolutional\s+neural\s+networks?\b", flags=re.IGNORECASE), "cnn"),
     (re.compile(r"\bneural\s+networks?\b", flags=re.IGNORECASE), "neural network"),
@@ -16,6 +21,11 @@ TOPIC_NORMALIZATION_PATTERNS = (
     (re.compile(r"\btrees\b", flags=re.IGNORECASE), "tree"),
     (re.compile(r"\bgraphs\b", flags=re.IGNORECASE), "graph"),
     (re.compile(r"\brecursive\s+function\b", flags=re.IGNORECASE), "recursion"),
+    (re.compile(r"\bmachne\s+learning\b", flags=re.IGNORECASE), "machine learning"),
+    (re.compile(r"\bmachine\s+learing\b", flags=re.IGNORECASE), "machine learning"),
+    (re.compile(r"\bachine\s+learning\b", flags=re.IGNORECASE), "machine learning"),
+    (re.compile(r"\bnn\b", flags=re.IGNORECASE), "neural network"),
+    (re.compile(r"\b/n\b", flags=re.IGNORECASE), "neural network"),
 )
 PROTECTED_TECHNICAL_TOPICS = (
     ("cnn", (r"\bcnn\b", r"\bcnn\s+model\b", r"\bconvolutional\s+neural\s+network\b")),
@@ -33,8 +43,10 @@ PROTECTED_TECHNICAL_TOPICS = (
     ("oop", (r"\boop\b",)),
     ("dsa", (r"\bdsa\b",)),
     ("recursion", (r"\brecursion\b",)),
+    ("probability", (r"\bprobability\b",)),
     ("deep learning", (r"\bdeep\s+learning\b",)),
     ("machine learning", (r"\bmachine\s+learning\b",)),
+    ("natural language processing", (r"\bnlp\b", r"\bnatural\s+language\s+processing\b")),
 )
 TOPIC_DISPLAY_LABELS = {
     "cnn": "CNN / Convolutional Neural Network",
@@ -54,6 +66,7 @@ TOPIC_DISPLAY_LABELS = {
     "oop": "OOP",
     "dsa": "DSA",
     "recursion": "Recursion",
+    "probability": "Probability",
 }
 ALL_PROTECTED_TERMS = frozenset(TOPIC_DISPLAY_LABELS)
 COMMAND_PATTERN = re.compile(
@@ -205,3 +218,51 @@ def normalize_topic_text(value: str, fallback: str = "") -> str:
 
     normalized_fallback = _normalize_topic_search_text(value or fallback)
     return _format_topic_label(normalized_fallback)
+
+
+def extract_topic(message: str) -> str:
+    """
+    Extract topic from user query using keyword matching with priority logic.
+    
+    Returns a formatted topic name or empty string if no topic found.
+    
+    Priority: Most specific topic wins over general topic.
+    
+    Examples:
+        "what is probability in math" -> "Probability"
+        "what is NLP in machine learning" -> "Natural Language Processing"
+        "explain CNN with example" -> "Convolutional Neural Network"
+        "explain linkedlist in depth" -> "Linked List"
+        "hello world" -> ""
+    """
+    original_message = message.lower()
+    print(f"[TOPIC EXTRACTION] Original message: '{message}'")
+    
+    # Priority 1: Most specific topics first
+    specific_topics = [
+        ("Convolutional Neural Network", ["cnn", "convolutional neural network"]),
+        ("Natural Language Processing", ["nlp", "natural language processing"]),
+        ("Deep Learning", ["deep learning"]),
+        ("Machine Learning", ["machine learning"]),
+        ("Binary Search", ["binary search"]),
+        ("Linked List", ["linked list", "linkedlist"]),
+        ("Array", ["array"]),
+        ("Stack", ["stack"]),
+        ("Queue", ["queue"]),
+        ("Tree", ["tree"]),
+        ("Graph", ["graph"]),
+        ("Recursion", ["recursion", "recursive"]),
+        ("Neural Network", ["neural network", "nn", "/n"]),
+        ("Probability", ["probability", "probabilities"]),
+    ]
+    
+    # Check for most specific topics first
+    for topic_name, keywords in specific_topics:
+        for keyword in keywords:
+            if keyword in original_message:
+                print(f"[TOPIC EXTRACTION] Found specific topic: {topic_name}")
+                return topic_name
+    
+    # No topic detected
+    print(f"[TOPIC EXTRACTION] No topic detected for: '{message}'")
+    return ""
