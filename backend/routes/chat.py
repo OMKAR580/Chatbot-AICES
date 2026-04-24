@@ -470,6 +470,11 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
         language = normalize_language(intent.language or user.preferred_language)
         weak_areas = _get_topic_weak_areas(db=db, user_id=user.user_id, topic=topic)
 
+        # Debug: Print incoming request
+        print(f"[CHAT REQUEST] user_id={user_id}, topic={topic}, message='{message[:50]}...'")
+        
+        # Try OpenAI API with fallback
+        explanation = None
         try:
             explanation = generate_explanation(
                 topic=topic,
@@ -482,16 +487,21 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
                 code_language=code_language,
                 weak_areas=weak_areas,
             )
+            print(f"[OPENAI SUCCESS] Generated explanation for topic: {topic}")
         except MissingAPIKeyError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=str(exc),
-            ) from exc
+            print(f"[OPENAI ERROR] Missing API Key: {exc}")
+            explanation = f"AI service is currently unavailable (missing API key), but I can help with basic information about {topic}. {message} - This is a fallback response while we fix the AI service."
         except AIServiceError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=str(exc),
-            ) from exc
+            print(f"[OPENAI ERROR] AI Service Error: {exc}")
+            explanation = f"AI service is temporarily unavailable, but here's basic information about {topic}. {message} - This is a fallback response while we restore the AI service."
+        except Exception as exc:
+            print(f"[OPENAI ERROR] Unexpected Error: {type(exc).__name__}: {exc}")
+            explanation = f"AI service encountered an unexpected error, but I can provide basic help with {topic}. {message} - This is a fallback response while we resolve the technical issue."
+        
+        # Ensure we always have a response
+        if not explanation:
+            print(f"[FALLBACK] No explanation generated, using default fallback")
+            explanation = f"AI service is currently unavailable, but I'm here to help with {topic}. {message} - This is a fallback response."
 
         db.add(
             models.ChatHistory(
@@ -518,19 +528,39 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
         _complete_request_tracker(request_id, response=response)
         return response
     except HTTPException as exc:
-        _complete_request_tracker(
-            request_id,
-            error_status=exc.status_code,
-            error_detail=str(exc.detail),
+        print(f"[HTTP ERROR] {exc.status_code}: {exc.detail}")
+        # Return fallback response instead of crashing
+        fallback_response = schemas.ChatResponse(
+            response=f"Request validation failed, but I can still help! {message} - This is a fallback response.",
+            level="beginner",
+            topic=payload.topic or "general",
+            language="English",
+            mode="standard",
+            response_depth="normal",
+            response_mode="auto",
+            request_id=request_id,
         )
-        raise
-    except Exception:
+        _complete_request_tracker(request_id, response=fallback_response)
+        return fallback_response
+    except Exception as exc:
+        print(f"[CRITICAL ERROR] Unexpected error: {type(exc).__name__}: {exc}")
+        # Return fallback response instead of crashing
+        fallback_response = schemas.ChatResponse(
+            response=f"System encountered an error, but I'm still here to help! {message} - This is a fallback response.",
+            level="beginner",
+            topic=payload.topic or "general",
+            language="English",
+            mode="standard",
+            response_depth="normal",
+            response_mode="auto",
+            request_id=request_id,
+        )
         _complete_request_tracker(
             request_id,
             error_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             error_detail="Unexpected server error while processing the chat request.",
         )
-        raise
+        return fallback_response
 
 
 def _get_topic_weak_areas(db: Session, user_id: str, topic: str) -> list[str]:
