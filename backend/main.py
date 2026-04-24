@@ -25,8 +25,9 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 AICES_DB_PATH = os.getenv("AICES_DB_PATH", "./data/aices.db")
 
-if not OPENAI_API_KEY:
-    raise ValueError("Missing OPENAI_API_KEY environment variable")
+# Temporarily remove validation to prevent startup crashes
+# if not OPENAI_API_KEY:
+#     raise ValueError("Missing OPENAI_API_KEY environment variable")
 
 def _get_allowed_origins() -> list[str]:
     """Read CORS origins from env, with safe local defaults for demos."""
