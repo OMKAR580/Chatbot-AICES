@@ -10,5 +10,5 @@ services:
       - key: AICES_DB_PATH
         value: /tmp/aices.db
       - key: ALLOWED_ORIGINS
-        value: https://your-aices-frontend-url.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+        value: https://chatbot-aices.vercel.app,http://localhost:5173,http://127.0.0.1:5173
     healthCheckPath: /health
