@@ -19,15 +19,29 @@ from backend.routes.user import router as user_router
 # Load environment variables
 load_dotenv()
 
-# Validate critical environment variables
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+# Resolve the active AI provider configuration. The backend currently uses OpenRouter,
+# while OPENAI_MODEL is kept as a legacy fallback during deployment transitions.
+AI_PROVIDER = "openrouter"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = (
+    os.getenv("OPENROUTER_MODEL")
+    or os.getenv("OPENAI_MODEL")
+    or "mistralai/mistral-7b-instruct"
+)
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 AICES_DB_PATH = os.getenv("AICES_DB_PATH", "./data/aices.db")
+OPENROUTER_TIMEOUT_SECONDS = os.getenv("OPENROUTER_TIMEOUT_SECONDS", "8")
 
-# Temporarily remove validation to prevent startup crashes
-# if not OPENAI_API_KEY:
-#     raise ValueError("Missing OPENAI_API_KEY environment variable")
+
+def _get_ai_environment_summary() -> dict[str, str]:
+    """Return a deployment-safe view of the resolved AI provider configuration."""
+    return {
+        "AI_PROVIDER": AI_PROVIDER,
+        "OPENROUTER_API_KEY": "configured" if OPENROUTER_API_KEY else "missing",
+        "OPENROUTER_MODEL": OPENROUTER_MODEL,
+        "OPENAI_MODEL": os.getenv("OPENAI_MODEL", ""),
+        "OPENROUTER_TIMEOUT_SECONDS": OPENROUTER_TIMEOUT_SECONDS,
+    }
 
 def _get_allowed_origins() -> list[str]:
     """Read CORS origins from env, with safe local defaults for demos."""
@@ -51,11 +65,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://chatbot-aices.vercel.app",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ],
+    allow_origins=_get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,8 +87,7 @@ def health_check():
         "service": "aices-backend",
         "version": app.version,
         "environment": {
-            "OPENAI_API_KEY": "configured" if OPENAI_API_KEY else "missing",
-            "OPENAI_MODEL": OPENAI_MODEL,
+            **_get_ai_environment_summary(),
             "ALLOWED_ORIGINS": ALLOWED_ORIGINS,
             "AICES_DB_PATH": AICES_DB_PATH,
         }
@@ -90,16 +99,11 @@ def debug_info():
     return {
         "status": "debug",
         "environment": {
-            "OPENAI_API_KEY": "configured" if OPENAI_API_KEY else "missing",
-            "OPENAI_MODEL": OPENAI_MODEL,
+            **_get_ai_environment_summary(),
             "ALLOWED_ORIGINS": ALLOWED_ORIGINS,
             "AICES_DB_PATH": AICES_DB_PATH,
         },
-        "cors_origins": [
-            "https://chatbot-aices.vercel.app",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173"
-        ]
+        "cors_origins": _get_allowed_origins(),
     }
 
 @app.get("/test-fallback")

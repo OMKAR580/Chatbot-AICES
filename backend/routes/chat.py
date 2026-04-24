@@ -17,6 +17,7 @@ from backend.services.ai_service import (
     AIServiceError,
     MissingAPIKeyError,
     generate_explanation,
+    get_openai_model,
     normalize_language,
     normalize_code_language,
     normalize_response_mode,
@@ -41,8 +42,10 @@ SHORT_PATTERNS = (
 DEPTH_PATTERNS = (
     r"\bin\s+depth\b",
     r"\bin\s+detail\b",
+    r"\bin\s+deepth\b",
     r"\bdetail\b",
     r"\bdetailed\b",
+    r"\bdeeply\b",
     r"\bfull\s+notes\b",
     r"\bnotes\b",
     r"\bstep\s+by\s+step\b",
@@ -397,6 +400,7 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
     user_id = payload.user_id.strip()
     message = payload.message.strip()
     request_id = (payload.request_id or "").strip() or f"chat_{uuid4().hex}"
+    model_name = get_openai_model()
 
     if not user_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_id cannot be empty.")
@@ -409,12 +413,26 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
         return _wait_for_tracked_response(request_id, tracker)
 
     try:
-        user = db.query(models.User).filter(models.User.user_id == user_id).first()
-        if user is None:
-            user = models.User(user_id=user_id)
-            db.add(user)
-            db.commit()
-            db.refresh(user)
+        print(
+            "[CHAT REQUEST] "
+            f"request_id={request_id}, user_id={user_id}, model={model_name}, "
+            f"message_preview={message[:120]!r}"
+        )
+
+        try:
+            user = db.query(models.User).filter(models.User.user_id == user_id).first()
+            if user is None:
+                user = models.User(user_id=user_id)
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+        except Exception as exc:
+            db.rollback()
+            print(
+                "[CHAT DB ERROR] "
+                f"request_id={request_id}, stage=user_lookup, error_type={type(exc).__name__}"
+            )
+            raise
 
         level = get_user_level(db=db, user_id=user.user_id)
         topics, intent = parse_chat_intent(
@@ -469,12 +487,14 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
         topic = topics[0]
         language = normalize_language(intent.language or user.preferred_language)
         weak_areas = _get_topic_weak_areas(db=db, user_id=user.user_id, topic=topic)
+        print(
+            "[CHAT RESOLVED] "
+            f"request_id={request_id}, topic={topic}, level={level}, "
+            f"mode={mode}, response_mode={response_mode}, language={language}"
+        )
 
-        # Debug: Print incoming request
-        print(f"[CHAT REQUEST] user_id={user_id}, topic={topic}, message='{message[:50]}...'")
-        
-        # Try OpenAI API with fallback
         explanation = None
+        error_type = None
         try:
             explanation = generate_explanation(
                 topic=topic,
@@ -487,33 +507,54 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
                 code_language=code_language,
                 weak_areas=weak_areas,
             )
-            print(f"[OPENAI SUCCESS] Generated explanation for topic: {topic}")
+            print(f"[CHAT PROVIDER OK] request_id={request_id}, topic={topic}, model={model_name}")
         except MissingAPIKeyError as exc:
-            print(f"[OPENAI ERROR] Missing API Key: {exc}")
-            explanation = f"AI service is currently unavailable (missing API key), but I can help with basic information about {topic}. {message} - This is a fallback response while we fix the AI service."
-        except AIServiceError as exc:
-            print(f"[OPENAI ERROR] AI Service Error: {exc}")
-            explanation = f"AI service is temporarily unavailable, but here's basic information about {topic}. {message} - This is a fallback response while we restore the AI service."
-        except Exception as exc:
-            print(f"[OPENAI ERROR] Unexpected Error: {type(exc).__name__}: {exc}")
-            explanation = f"AI service encountered an unexpected error, but I can provide basic help with {topic}. {message} - This is a fallback response while we resolve the technical issue."
-        
-        # Ensure we always have a response
-        if not explanation:
-            print(f"[FALLBACK] No explanation generated, using default fallback")
-            explanation = f"AI service is currently unavailable, but I'm here to help with {topic}. {message} - This is a fallback response."
-
-        db.add(
-            models.ChatHistory(
-                user_id=user.user_id,
-                topic=topic.strip().lower(),
-                user_message=message,
-                ai_response=explanation,
-                learner_level=level,
-                language=language,
+            print(
+                "[CHAT PROVIDER ERROR] "
+                f"request_id={request_id}, model={model_name}, error_type={type(exc).__name__}"
             )
-        )
-        db.commit()
+            explanation = "AI provider failed. Please check backend logs."
+            error_type = "provider_error"
+        except AIServiceError as exc:
+            cause = exc.__cause__
+            safe_error_type = type(cause).__name__ if cause is not None else type(exc).__name__
+            print(
+                "[CHAT PROVIDER ERROR] "
+                f"request_id={request_id}, model={model_name}, error_type={safe_error_type}"
+            )
+            explanation = "AI provider failed. Please check backend logs."
+            error_type = "provider_error"
+        except Exception as exc:
+            print(
+                "[CHAT PROVIDER ERROR] "
+                f"request_id={request_id}, model={model_name}, error_type={type(exc).__name__}"
+            )
+            explanation = "AI provider failed. Please check backend logs."
+            error_type = "provider_error"
+
+        if not explanation:
+            print(f"[CHAT PROVIDER ERROR] request_id={request_id}, model={model_name}, error_type=EmptyResponse")
+            explanation = "AI provider failed. Please check backend logs."
+            error_type = "provider_error"
+
+        try:
+            db.add(
+                models.ChatHistory(
+                    user_id=user.user_id,
+                    topic=topic.strip().lower(),
+                    user_message=message,
+                    ai_response=explanation,
+                    learner_level=level,
+                    language=language,
+                )
+            )
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            print(
+                "[CHAT DB ERROR] "
+                f"request_id={request_id}, stage=history_save, error_type={type(exc).__name__}"
+            )
 
         response = schemas.ChatResponse(
             response=explanation,
@@ -524,42 +565,33 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
             response_depth=response_depth,
             response_mode=response_mode,
             request_id=request_id,
+            error_type=error_type,
         )
         _complete_request_tracker(request_id, response=response)
         return response
     except HTTPException as exc:
         print(f"[HTTP ERROR] {exc.status_code}: {exc.detail}")
-        # Return fallback response instead of crashing
-        fallback_response = schemas.ChatResponse(
-            response=f"Request validation failed, but I can still help! {message} - This is a fallback response.",
-            level="beginner",
-            topic=payload.topic or "general",
-            language="English",
-            mode="standard",
-            response_depth="normal",
-            response_mode="auto",
-            request_id=request_id,
-        )
-        _complete_request_tracker(request_id, response=fallback_response)
-        return fallback_response
-    except Exception as exc:
-        print(f"[CRITICAL ERROR] Unexpected error: {type(exc).__name__}: {exc}")
-        # Return fallback response instead of crashing
-        fallback_response = schemas.ChatResponse(
-            response=f"System encountered an error, but I'm still here to help! {message} - This is a fallback response.",
-            level="beginner",
-            topic=payload.topic or "general",
-            language="English",
-            mode="standard",
-            response_depth="normal",
-            response_mode="auto",
-            request_id=request_id,
-        )
         _complete_request_tracker(
             request_id,
-            error_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            error_detail="Unexpected server error while processing the chat request.",
+            error_status=exc.status_code,
+            error_detail=str(exc.detail),
         )
+        raise
+    except Exception as exc:
+        db.rollback()
+        print(f"[CRITICAL ERROR] request_id={request_id}, error_type={type(exc).__name__}")
+        fallback_response = schemas.ChatResponse(
+            response="Request failed. Please check backend logs.",
+            level="beginner",
+            topic=payload.topic or "general",
+            language="English",
+            mode="standard",
+            response_depth="normal",
+            response_mode="auto",
+            request_id=request_id,
+            error_type="server_error",
+        )
+        _complete_request_tracker(request_id, response=fallback_response)
         return fallback_response
 
 

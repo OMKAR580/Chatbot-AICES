@@ -39,6 +39,7 @@ class ChatResponse(BaseModel):
     response_depth: ResponseDepthLiteral
     response_mode: ResponseModeLiteral
     request_id: str | None = None
+    error_type: str | None = None
 
 
 class UserRead(BaseModel):
