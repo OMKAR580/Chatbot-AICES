@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend import models, schemas
 from backend.database import get_db
+from backend.services.ai_service import normalize_language
 from backend.services.topic_utils import normalize_topic_text
 
 
@@ -40,7 +41,7 @@ def get_history(
             user_message=item.user_message,
             ai_response=item.ai_response,
             learner_level=item.learner_level,
-            language=item.language,
+            language=normalize_language(item.language),
             created_at=item.created_at,
         )
         for item in history

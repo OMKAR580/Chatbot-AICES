@@ -52,7 +52,7 @@ export default function ChatBox({
               {currentLevel}
             </span>
             <span className="rounded-full border border-ocean/10 bg-canvas/68 px-3 py-2 font-medium text-slate-300 shadow-soft">
-              {language || "Hinglish"}
+              {language || "Language not set"}
             </span>
             <span className="rounded-full border border-ocean/10 bg-canvas/68 px-3 py-2 font-medium text-slate-300 shadow-soft">
               Tutor view: {currentMode}

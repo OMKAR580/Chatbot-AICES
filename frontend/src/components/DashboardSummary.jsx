@@ -32,7 +32,7 @@ export default function DashboardSummary({
     },
     {
       label: "Language",
-      value: preferredLanguage || "Hinglish",
+      value: preferredLanguage || "Not set yet",
       detail: "Used for explanations and quizzes",
       tone: "from-ember to-orange-300",
     },

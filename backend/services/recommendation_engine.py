@@ -1,6 +1,4 @@
-"""Rule-based topic recommendation engine for AICES."""
-
-import json
+"""Topic recommendation engine driven by recent learner study history."""
 
 from sqlalchemy.orm import Session
 
@@ -8,131 +6,198 @@ from backend import models
 from backend.services.topic_utils import normalize_topic_text
 
 
-DEFAULT_RECOMMENDATIONS = [
-    "Recursion basics",
-    "Binary search dry run",
-    "Stack vs Queue",
-    "Time complexity basics",
-    "Base condition practice",
-]
-
-FOUNDATIONAL_TOPIC_MAP = {
-    "recursion": ["Recursion basics", "Base condition practice", "Recursive flow dry run"],
-    "binary search": ["Binary search dry run", "Search boundary practice", "Time complexity basics"],
-    "stack": ["Stack operations", "Stack vs Queue", "Call stack basics"],
-    "queue": ["Queue operations", "Stack vs Queue", "Breadth-first search basics"],
-    "tree": ["Tree traversal basics", "Recursion in trees", "Depth-first search basics"],
-    "graph": ["Graph traversal basics", "Breadth-first search basics", "Depth-first search basics"],
+TOPIC_RECOMMENDATION_MAP = {
+    "probability": [
+        "Probability Basics",
+        "Conditional Probability",
+        "Bayes Theorem",
+        "Practice Problems",
+    ],
+    "cnn": [
+        "Convolution Operation",
+        "Filters and Kernels",
+        "Pooling Layers",
+        "CNN Practice Problems",
+    ],
+    "machine learning": [
+        "Machine Learning Basics",
+        "Supervised vs Unsupervised Learning",
+        "Model Evaluation",
+        "Machine Learning Practice Problems",
+    ],
+    "deep learning": [
+        "Deep Learning Basics",
+        "Activation Functions",
+        "Backpropagation",
+        "Deep Learning Practice Problems",
+    ],
+    "neural network": [
+        "Neural Network Basics",
+        "Activation Functions",
+        "Forward and Backward Propagation",
+        "Neural Network Practice Problems",
+    ],
+    "linked list": [
+        "Linked List Basics",
+        "Singly vs Doubly Linked List",
+        "Linked List Operations",
+        "Linked List Practice Problems",
+    ],
+    "binary search": [
+        "Binary Search Basics",
+        "Boundary Conditions",
+        "Sorted Array Search",
+        "Binary Search Practice Problems",
+    ],
+    "array": [
+        "Array Basics",
+        "Array Traversal",
+        "Insertion and Deletion",
+        "Array Practice Problems",
+    ],
+    "stack": [
+        "Stack Basics",
+        "Push and Pop Operations",
+        "Stack vs Queue",
+        "Stack Practice Problems",
+    ],
+    "queue": [
+        "Queue Basics",
+        "Enqueue and Dequeue Operations",
+        "Queue vs Stack",
+        "Queue Practice Problems",
+    ],
+    "tree": [
+        "Tree Basics",
+        "Tree Traversal",
+        "Binary Tree Practice",
+        "Tree Practice Problems",
+    ],
+    "graph": [
+        "Graph Basics",
+        "BFS and DFS",
+        "Graph Representation",
+        "Graph Practice Problems",
+    ],
+    "recursion": [
+        "Recursion Basics",
+        "Base Case and Recursive Case",
+        "Recursive Dry Run",
+        "Recursion Practice Problems",
+    ],
+    "dbms": [
+        "DBMS Basics",
+        "Normalization",
+        "Transactions and ACID",
+        "DBMS Practice Problems",
+    ],
+    "os": [
+        "OS Basics",
+        "Process vs Thread",
+        "Scheduling",
+        "OS Practice Problems",
+    ],
+    "oop": [
+        "OOP Basics",
+        "Encapsulation and Inheritance",
+        "Polymorphism",
+        "OOP Practice Problems",
+    ],
+    "dsa": [
+        "DSA Basics",
+        "Complexity Analysis",
+        "Core Data Structures",
+        "DSA Practice Problems",
+    ],
 }
 
 
 def get_recommendations(db: Session, user_id: str, limit: int = 5) -> list[str]:
-    """Return 3 to 5 recommended next topics using simple progress signals."""
+    """Return unique next-study suggestions from the learner's last 3 to 5 chat topics."""
+    max_items = max(3, min(limit, 5))
+    recent_topics = _get_recent_chat_topics(db=db, user_id=user_id, max_topics=5)
+    if not recent_topics:
+        recent_topics = _get_recent_progress_topics(db=db, user_id=user_id, max_topics=3)
+
     recommendations: list[str] = []
-    progress_rows = (
-        db.query(models.ConceptProgress)
-        .filter(models.ConceptProgress.user_id == user_id)
-        .order_by(models.ConceptProgress.mastery_percent.asc(), models.ConceptProgress.last_updated.desc())
-        .all()
-    )
+    for topic in recent_topics:
+        for recommendation in _recommendations_for_topic(topic):
+            _add_unique(recommendations, recommendation)
+            if len(recommendations) >= max_items:
+                return recommendations[:max_items]
 
-    weak_topics = []
-    low_mastery_topics = []
-    for progress in progress_rows:
-        normalized_topic = normalize_topic_text(progress.topic, fallback="")
-        if not normalized_topic:
-            continue
+    return recommendations[:max_items]
 
-        if (progress.mastery_percent or 0) < 50 or _load_weak_points(progress.weak_points):
-            weak_topics.append(normalized_topic)
-        elif 50 <= (progress.mastery_percent or 0) < 70:
-            low_mastery_topics.append(normalized_topic)
 
-    recent_quizzes = (
-        db.query(models.QuizResult)
-        .filter(models.QuizResult.user_id == user_id)
-        .order_by(models.QuizResult.created_at.desc(), models.QuizResult.id.desc())
-        .limit(10)
-        .all()
-    )
-    for quiz in recent_quizzes:
-        normalized_topic = normalize_topic_text(quiz.topic, fallback="")
-        if quiz.score_percent < 50 and normalized_topic not in weak_topics:
-            weak_topics.append(normalized_topic)
-
-    for topic in weak_topics:
-        _add_topic_recommendations(recommendations, topic)
-
-    for topic in low_mastery_topics:
-        _add_unique(recommendations, f"{_title_topic(topic)} revision sprint")
-        _add_topic_recommendations(recommendations, topic)
-
-    recent_history = (
+def _get_recent_chat_topics(db: Session, user_id: str, max_topics: int) -> list[str]:
+    history_rows = (
         db.query(models.ChatHistory)
         .filter(models.ChatHistory.user_id == user_id)
         .order_by(models.ChatHistory.created_at.desc(), models.ChatHistory.id.desc())
-        .limit(5)
+        .limit(15)
         .all()
     )
-    for history_item in recent_history:
-        normalized_topic = normalize_topic_text(history_item.topic, fallback="")
+    recent_topics: list[str] = []
+    seen_topics: set[str] = set()
+    for row in history_rows:
+        normalized_topic = normalize_topic_text(row.topic, fallback="")
+        topic_key = _topic_key(normalized_topic)
+        if not normalized_topic or topic_key in seen_topics:
+            continue
+
+        seen_topics.add(topic_key)
+        recent_topics.append(normalized_topic)
+        if len(recent_topics) >= max_topics:
+            break
+
+    return recent_topics
+
+
+def _get_recent_progress_topics(db: Session, user_id: str, max_topics: int) -> list[str]:
+    progress_rows = (
+        db.query(models.ConceptProgress)
+        .filter(models.ConceptProgress.user_id == user_id)
+        .order_by(models.ConceptProgress.last_updated.desc(), models.ConceptProgress.id.desc())
+        .limit(max_topics)
+        .all()
+    )
+    recent_topics: list[str] = []
+    for progress in progress_rows:
+        normalized_topic = normalize_topic_text(progress.topic, fallback="")
         if normalized_topic:
-            _add_topic_recommendations(recommendations, normalized_topic)
-
-    for default_topic in DEFAULT_RECOMMENDATIONS:
-        _add_unique(recommendations, default_topic)
-
-    return recommendations[: max(3, min(limit, 5))]
+            recent_topics.append(normalized_topic)
+    return recent_topics
 
 
-def _add_topic_recommendations(recommendations: list[str], topic: str) -> None:
-    normalized_topic = _topic_key(topic)
-    related_topics = FOUNDATIONAL_TOPIC_MAP.get(normalized_topic)
+def _recommendations_for_topic(topic: str) -> list[str]:
+    topic_key = _topic_key(topic)
+    mapped_recommendations = TOPIC_RECOMMENDATION_MAP.get(topic_key)
+    if mapped_recommendations:
+        return mapped_recommendations
 
-    if related_topics:
-        for related_topic in related_topics:
-            _add_unique(recommendations, related_topic)
-        return
+    display_topic = normalize_topic_text(topic, fallback="")
+    if not display_topic:
+        return []
 
-    if normalized_topic:
-        if normalized_topic.endswith("basics"):
-            _add_unique(recommendations, f"{_title_topic(normalized_topic)} practice")
-            return
-
-        _add_unique(recommendations, f"{_title_topic(normalized_topic)} basics")
-        _add_unique(recommendations, f"{_title_topic(normalized_topic)} example practice")
-
-
-def _add_unique(recommendations: list[str], topic: str) -> None:
-    normalized_existing = {recommendation.strip().lower() for recommendation in recommendations}
-    cleaned_topic = topic.strip()
-    if cleaned_topic and cleaned_topic.lower() not in normalized_existing:
-        recommendations.append(cleaned_topic)
-
-
-def _title_topic(topic: str) -> str:
-    return " ".join(word.capitalize() for word in topic.split())
+    return [
+        f"{display_topic} Basics",
+        f"{display_topic} Key Concepts",
+        f"{display_topic} Practice Problems",
+    ]
 
 
 def _topic_key(topic: str) -> str:
-    normalized_topic = normalize_topic_text(topic, fallback="")
-    for suffix in (" revision sprint", " example practice", " dry run", " practice", " basics"):
-        if normalized_topic.endswith(suffix):
-            return normalized_topic[: -len(suffix)].strip() or normalized_topic
-
+    normalized_topic = normalize_topic_text(topic, fallback="").strip().lower()
+    if normalized_topic.startswith("cnn"):
+        return "cnn"
     return normalized_topic
 
 
-def _load_weak_points(raw_value: str | None) -> list[str]:
-    if not raw_value:
-        return []
+def _add_unique(recommendations: list[str], topic: str) -> None:
+    cleaned_topic = topic.strip()
+    if not cleaned_topic:
+        return
 
-    try:
-        parsed_value = json.loads(raw_value)
-    except json.JSONDecodeError:
-        return [point.strip() for point in raw_value.split(",") if point.strip()]
-
-    if not isinstance(parsed_value, list):
-        return []
-
-    return [str(point).strip() for point in parsed_value if str(point).strip()]
+    existing = {recommendation.strip().lower() for recommendation in recommendations}
+    if cleaned_topic.lower() not in existing:
+        recommendations.append(cleaned_topic)

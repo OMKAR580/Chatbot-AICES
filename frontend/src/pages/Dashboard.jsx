@@ -9,7 +9,8 @@ import {
   getProgress,
   getRecommendations,
 } from "../services/api";
-import { cleanCoreTopic, formatTopicLabel } from "../utils/topic";
+import { formatTopicLabel } from "../utils/topic";
+import { readStoredLanguage, writeStoredLanguage } from "../utils/userPrefs";
 
 const DEFAULT_USER_ID = import.meta.env.VITE_AICES_USER_ID || "user_001";
 
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const [progressData, setProgressData] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const [history, setHistory] = useState([]);
+  const [preferredLanguage, setPreferredLanguage] = useState(() => readStoredLanguage());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -52,15 +54,15 @@ export default function Dashboard() {
       const recommendationData =
         recommendationResult.status === "fulfilled" ? recommendationResult.value : null;
       const historyData = historyResult.status === "fulfilled" ? historyResult.value : null;
+      const resolvedLanguage = progress?.preferred_language || readStoredLanguage();
 
       setProgressData(progress);
       setRecommendations(recommendationData?.recommended_topics || []);
-      setHistory(
-        (historyData?.history || []).map((item) => ({
-          ...item,
-          topic: cleanCoreTopic(item.topic) || item.topic,
-        })),
-      );
+      setHistory(historyData?.history || []);
+      setPreferredLanguage(resolvedLanguage);
+      if (resolvedLanguage) {
+        writeStoredLanguage(resolvedLanguage);
+      }
 
       if (!progress && !recommendationData && !historyData) {
         throw progressResult.reason || new Error("Failed to load dashboard data.");
@@ -107,7 +109,7 @@ export default function Dashboard() {
                 {label(progressData?.current_level)}
               </p>
               <p className="mt-2 text-sm text-slate-400">
-                {DEFAULT_USER_ID} studying in {progressData?.preferred_language || "Hinglish"}
+                {DEFAULT_USER_ID} studying in {preferredLanguage || "Not set yet"}
               </p>
             </div>
 
@@ -131,7 +133,7 @@ export default function Dashboard() {
 
       <DashboardSummary
         currentLevel={progressData?.current_level}
-        preferredLanguage={progressData?.preferred_language}
+        preferredLanguage={preferredLanguage}
         recentScores={recentScores}
         topicCount={topicProgress.length}
         weakTopicCount={weakTopics.length}

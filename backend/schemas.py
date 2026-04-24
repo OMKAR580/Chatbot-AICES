@@ -32,6 +32,7 @@ class ChatResponse(BaseModel):
     """Outgoing payload for the /chat endpoint."""
 
     response: str
+    explanation: str | None = None
     level: LevelLiteral
     topic: str
     language: LanguageLiteral

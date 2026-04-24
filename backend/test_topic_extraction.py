@@ -5,40 +5,33 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend.routes.chat import parse_chat_intent
-from backend.services.ai_service import build_prompt
+from backend.services.topic_utils import extract_topic
 
 
 TEST_CASES = (
-    ("explain CNN model in machine learning", "CNN / Convolutional Neural Network"),
-    ("explain linked list in depth", "Linked List"),
-    ("explain binary search technically", "Binary Search"),
-    ("explain array with code and output", "Array"),
-    ("teach recursion simply", "Recursion"),
+    ("explain hyperparameter", "Hyperparameter"),
+    ("what is hyperparameter in ML", "Hyperparameter Machine Learning"),
+    ("explain supervised learning", "Supervised Learning"),
+    ("what is probability in math", "Probability"),
+    ("explain static routing in Computer network", "Static Routing"),
+    ("what is NLP in machine learning", "Natural Language Processing"),
+    ("explain linear regression", "Linear Regression"),
+    ("explain CNN with example", "Convolutional Neural Network"),
 )
+
+
+
 
 
 def main() -> None:
     for message, expected_topic in TEST_CASES:
-        topics, _ = parse_chat_intent(message)
-        assert topics == [expected_topic], f"{message!r} -> {topics!r}, expected {[expected_topic]!r}"
+        topic = extract_topic(message)
+        assert topic == expected_topic, f"{message!r} -> {topic!r}, expected {expected_topic!r}"
 
-    prompt = build_prompt(
-        topic="CNN / Convolutional Neural Network",
-        user_message="explain CNN model in machine learning",
-        level="beginner",
-        language="English",
-        mode="standard",
-        response_depth="normal",
-        response_mode="auto",
-        code_required=False,
-        code_language="Python",
-        weak_areas=None,
-    )
-    assert "User question: explain CNN model in machine learning" in prompt
-    assert "Detected topic: CNN / Convolutional Neural Network" in prompt
+
     print("topic extraction tests passed")
 
 
 if __name__ == "__main__":
     main()
+

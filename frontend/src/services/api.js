@@ -1,7 +1,6 @@
 import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim();
-console.log("BASE_URL loaded:", BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL ? BASE_URL.replace(/\/+$/, "") : "/api",
@@ -10,30 +9,6 @@ const apiClient = axios.create({
   },
   timeout: 30000,
 });
-
-// Add request interceptor for debugging
-apiClient.interceptors.request.use(
-  (config) => {
-    console.log("API Request:", config.method?.toUpperCase(), config.baseURL + config.url);
-    return config;
-  },
-  (error) => {
-    console.error("API Request Error:", error);
-    return Promise.reject(error);
-  }
-);
-
-// Add response interceptor for debugging
-apiClient.interceptors.response.use(
-  (response) => {
-    console.log("API Response:", response.status, response.config.url);
-    return response;
-  },
-  (error) => {
-    console.error("API Response Error:", error.message, error.config?.url);
-    return Promise.reject(error);
-  }
-);
 
 export async function sendChatMessage({
   userId,
@@ -58,7 +33,13 @@ export async function sendChatMessage({
     topic,
   });
 
-  return response.data;
+  const data = response.data || {};
+  return {
+    ...data,
+    explanation: data.explanation || data.response || "",
+    language: data.language || "",
+    topic: data.topic || "",
+  };
 }
 
 export async function generateQuiz({ userId, topic, count = 5, level, language }) {

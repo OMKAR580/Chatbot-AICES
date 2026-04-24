@@ -16,6 +16,7 @@ import {
   updateUserLanguage,
 } from "../services/api";
 import { cleanCoreTopic, formatTopicLabel as formatTopicText } from "../utils/topic";
+import { readStoredLanguage, writeStoredLanguage } from "../utils/userPrefs";
 
 const DEFAULT_USER_ID = import.meta.env.VITE_AICES_USER_ID || "user_001";
 
@@ -198,7 +199,7 @@ export default function ChatPage() {
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [learnerLevel, setLearnerLevel] = useState("");
-  const [preferredLanguage, setPreferredLanguage] = useState("Hinglish");
+  const [preferredLanguage, setPreferredLanguage] = useState(() => readStoredLanguage());
   const [lastAskedTopic, setLastAskedTopic] = useState("");
   const [lastExplanationMode, setLastExplanationMode] = useState("standard");
   const [lastResponseMode, setLastResponseMode] = useState("auto");
@@ -251,17 +252,15 @@ export default function ChatPage() {
         const profile = profileResult.status === "fulfilled" ? profileResult.value : null;
         const progress = progressResult.status === "fulfilled" ? progressResult.value : null;
         const history = historyResult.status === "fulfilled" ? historyResult.value : null;
+        const resolvedLanguage =
+          profile?.preferred_language || progress?.preferred_language || readStoredLanguage();
 
         setLearnerLevel(profile?.current_level || progress?.current_level || "");
-        setPreferredLanguage(
-          profile?.preferred_language || progress?.preferred_language || "Hinglish",
-        );
-        setChatHistory(
-          (history?.history || []).map((item) => ({
-            ...item,
-            topic: cleanCoreTopic(item.topic) || item.topic,
-          })),
-        );
+        setPreferredLanguage(resolvedLanguage);
+        if (resolvedLanguage) {
+          writeStoredLanguage(resolvedLanguage);
+        }
+        setChatHistory(history?.history || []);
 
         if (!profile && !progress && !history) {
           throw profileResult.reason || new Error("Failed to load AICES data.");
@@ -286,12 +285,7 @@ export default function ChatPage() {
 
   async function refreshHistory() {
     const data = await getChatHistory(DEFAULT_USER_ID);
-    setChatHistory(
-      (data.history || []).map((item) => ({
-        ...item,
-        topic: cleanCoreTopic(item.topic) || item.topic,
-      })),
-    );
+    setChatHistory(data.history || []);
   }
 
   async function submitMessage(rawMessage, topicOverride, overrides = {}) {
@@ -306,8 +300,6 @@ export default function ChatPage() {
     }
 
     const parsedIntent = parseChatIntent(message);
-    const overrideTopics = topicOverride ? extractTopics(topicOverride) : [];
-    const topic = cleanCoreTopic(overrideTopics.length === 1 ? overrideTopics[0] : parsedIntent.topic);
     const mode = overrides.modeOverride === "standard" || !overrides.modeOverride
       ? parsedIntent.mode
       : overrides.modeOverride;
@@ -322,22 +314,11 @@ export default function ChatPage() {
     const codeRequired = responseMode === "code" ? true : parsedIntent.codeRequired;
     const codeLanguage = parsedIntent.codeLanguage;
 
-    if (!topic && parsedIntent.topics.length > 1 && !topicOverride) {
-      setError("Please ask one concept at a time.");
-      return;
-    }
-
-    if (!topic) {
-      setError("Please mention one clear concept to study.");
-      return;
-    }
-
     const requestId = createMessageId("chat");
     const userMessageId = `user-${requestId}`;
     const assistantMessageId = `assistant-${requestId}`;
     setError("");
     setStatusMessage("");
-    setLastAskedTopic(cleanCoreTopic(topic) || topic);
     setLastExplanationMode(mode);
     setLastResponseMode(responseMode);
     pendingChatRequestRef.current = requestId;
@@ -359,7 +340,6 @@ export default function ChatPage() {
         responseMode,
         codeRequired: codeRequired ? true : undefined,
         codeLanguage: codeRequired ? codeLanguage : undefined,
-        topic: cleanCoreTopic(topic) || undefined,
       });
 
       if (pendingChatRequestRef.current !== requestId) {
@@ -368,15 +348,18 @@ export default function ChatPage() {
 
       setLearnerLevel(data.level);
       setPreferredLanguage(data.language || preferredLanguage);
-      setLastAskedTopic(cleanCoreTopic(data.topic || topic) || data.topic || topic);
+      if (data.language) {
+        writeStoredLanguage(data.language);
+      }
+      setLastAskedTopic(data.topic);
       setLastExplanationMode(data.mode || mode);
       setLastResponseMode(data.response_mode || responseMode);
       appendMessageOnce({
         id: assistantMessageId,
         sender: "assistant",
-        text: data.response,
+        text: data.explanation || data.response,
         level: data.level,
-        topic: cleanCoreTopic(data.topic || topic) || data.topic || topic,
+        topic: data.topic,
       });
 
       try {
@@ -396,8 +379,7 @@ export default function ChatPage() {
 
   async function startQuiz(topic, countOverride = quizCount) {
     const quizTopic = topic.trim();
-    const cleanedQuizTopic = cleanCoreTopic(quizTopic) || quizTopic;
-    if (!cleanedQuizTopic) {
+    if (!quizTopic) {
       setError("Ask about a concept first so AICES knows what to quiz you on.");
       return;
     }
@@ -408,22 +390,22 @@ export default function ChatPage() {
     setLastQuizReview(null);
     setActiveQuiz(null);
     setSelectedAnswers({});
-    setLastAskedTopic(cleanedQuizTopic);
     setLastExplanationMode("quiz");
     setLastResponseMode("auto");
     setIsQuizLoading(true);
 
     try {
+      const quizLanguage = preferredLanguage || readStoredLanguage() || "English";
       const data = await generateQuiz({
         userId: DEFAULT_USER_ID,
-        topic: cleanedQuizTopic,
+        topic: quizTopic,
         count: countOverride,
         level: learnerLevel || undefined,
-        language: preferredLanguage,
+        language: quizLanguage,
       });
 
       setActiveQuiz(data);
-      setLastAskedTopic(cleanCoreTopic(data.topic || cleanedQuizTopic) || data.topic || cleanedQuizTopic);
+      setLastAskedTopic(data.topic || quizTopic);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {
@@ -492,6 +474,7 @@ export default function ChatPage() {
       });
 
       setPreferredLanguage(data.preferred_language);
+      writeStoredLanguage(data.preferred_language);
       setStatusMessage(data.message);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -507,7 +490,7 @@ export default function ChatPage() {
     setQuizResult(null);
     setLastQuizReview(null);
     setSelectedAnswers({});
-    setLastAskedTopic(cleanCoreTopic(historyItem.topic) || historyItem.topic);
+    setLastAskedTopic(historyItem.topic);
     setLastExplanationMode("standard");
     setLastResponseMode("auto");
     setLearnerLevel(historyItem.learner_level);
@@ -523,7 +506,7 @@ export default function ChatPage() {
         sender: "assistant",
         text: historyItem.ai_response,
         level: historyItem.learner_level,
-        topic: cleanCoreTopic(historyItem.topic) || historyItem.topic,
+        topic: historyItem.topic,
       },
     ]);
   }

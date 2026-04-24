@@ -29,8 +29,14 @@ TOPIC_NORMALIZATION_PATTERNS = (
 )
 PROTECTED_TECHNICAL_TOPICS = (
     ("cnn", (r"\bcnn\b", r"\bcnn\s+model\b", r"\bconvolutional\s+neural\s+network\b")),
+    ("natural language processing", (r"\bnlp\b", r"\bnatural\s+language\s+processing\b")),
     ("linked list", (r"\blinked\s+list\b", r"\blinkedlist\b")),
     ("binary search", (r"\bbinary\s+search\b", r"\bbinarysearch\b")),
+    ("static routing", (r"\bstatic\s+routing\b",)),
+    ("dynamic routing", (r"\bdynamic\s+routing\b",)),
+    ("computer network", (r"\bcomputer\s+network(?:ing)?\b",)),
+    ("deep learning", (r"\bdeep\s+learning\b",)),
+    ("machine learning", (r"\bmachine\s+learning\b",)),
     ("neural network", (r"\bneural\s+network\b",)),
     ("array", (r"\barray\b",)),
     ("stack", (r"\bstack\b",)),
@@ -44,14 +50,14 @@ PROTECTED_TECHNICAL_TOPICS = (
     ("dsa", (r"\bdsa\b",)),
     ("recursion", (r"\brecursion\b",)),
     ("probability", (r"\bprobability\b",)),
-    ("deep learning", (r"\bdeep\s+learning\b",)),
-    ("machine learning", (r"\bmachine\s+learning\b",)),
-    ("natural language processing", (r"\bnlp\b", r"\bnatural\s+language\s+processing\b")),
 )
 TOPIC_DISPLAY_LABELS = {
     "cnn": "CNN / Convolutional Neural Network",
     "linked list": "Linked List",
     "binary search": "Binary Search",
+    "static routing": "Static Routing",
+    "dynamic routing": "Dynamic Routing",
+    "computer network": "Computer Network",
     "machine learning": "Machine Learning",
     "deep learning": "Deep Learning",
     "neural network": "Neural Network",
@@ -67,6 +73,7 @@ TOPIC_DISPLAY_LABELS = {
     "dsa": "DSA",
     "recursion": "Recursion",
     "probability": "Probability",
+    "natural language processing": "Natural Language Processing",
 }
 ALL_PROTECTED_TERMS = frozenset(TOPIC_DISPLAY_LABELS)
 COMMAND_PATTERN = re.compile(
@@ -152,117 +159,59 @@ def _format_topic_label(topic: str) -> str:
 
 def clean_core_topic(value: str, max_words: int = 4) -> str:
     """Extract the clean concept from a learner message or stored topic."""
-    if not value or not value.strip():
-        return ""
+    return extract_topic(value)
 
-    topic = _normalize_topic_phrasing(value)
-    protected_topic = _extract_protected_topic(topic)
-    if protected_topic:
-        return _format_topic_label(protected_topic)
-
-    topic = COMMAND_PATTERN.sub(" ", topic)
-    topic = re.sub(
-        r"\b(in\s+)?(a\s+)?(very\s+)?(simple|simpler|easy|easier|basic)\s+(way|words)\b",
-        " ",
-        topic,
-        flags=re.IGNORECASE,
-    )
-    topic = re.sub(r"\b(with\s+)?(real[-\s]?life\s+)?examples?\b", " ", topic, flags=re.IGNORECASE)
-    topic = re.sub(r"\b(in\s+)?(technical|advanced)\s+(way|detail)\b", " ", topic, flags=re.IGNORECASE)
-    topic = re.sub(
-        r"\b(full\s+notes|class\s+notes|study\s+notes|interview\s+mode|notes\s+mode)\b",
-        " ",
-        topic,
-        flags=re.IGNORECASE,
-    )
-    topic = re.sub(
-        r"\b(in\s+depth|in\s+detail|detail|detailed|full\s+notes|notes|with\s+code|with\s+output|step\s+by\s+step)\b",
-        " ",
-        topic,
-        flags=re.IGNORECASE,
-    )
-    topic = re.sub(r"\b(short|brief|quick|summary|interview|viva)\b", " ", topic, flags=re.IGNORECASE)
-    topic = re.sub(r"\b(?:in|using|with)\s+(python|java|c)\b", " ", topic, flags=re.IGNORECASE)
-    topic = re.sub(r"\b(?:python|java|c)\s+(?:code|program|implementation)\b", " ", topic, flags=re.IGNORECASE)
-    topic = re.sub(r"\b(code|program|implementation|output)\b", " ", topic, flags=re.IGNORECASE)
-
-    protected_topic = _extract_protected_topic(topic)
-    if protected_topic:
-        return _format_topic_label(protected_topic)
-
-    topic = FILLER_TOPIC_PATTERN.sub(" ", topic)
-    topic = _normalize_topic_phrasing(topic)
-    topic = re.sub(r"^(?:and|or)\b", " ", topic, flags=re.IGNORECASE)
-    topic = re.sub(r"\b(?:and|or)$", " ", topic, flags=re.IGNORECASE)
-    topic = re.sub(r"\s+", " ", topic).strip(" .?!:-_").lower()
-
-    if not re.search(r"[a-z0-9]", topic, flags=re.IGNORECASE):
-        return ""
-
-    protected_topic = _extract_protected_topic(topic)
-    if protected_topic:
-        return _format_topic_label(protected_topic)
-
-    limited_topic = " ".join(topic.split()[:max_words])
-    if limited_topic in GENERIC_TOPICS:
-        return ""
-
-    return _format_topic_label(limited_topic)
 
 
 def normalize_topic_text(value: str, fallback: str = "") -> str:
     """Return a sanitized topic, preserving a normalized fallback when needed."""
-    cleaned_topic = clean_core_topic(value)
-    if cleaned_topic:
-        return cleaned_topic
+    cleaned = extract_topic(value)
+    if cleaned:
+        return cleaned
+    return extract_topic(fallback)
 
-    normalized_fallback = _normalize_topic_search_text(value or fallback)
-    return _format_topic_label(normalized_fallback)
+
 
 
 def extract_topic(message: str) -> str:
-    """
-    Extract topic from user query using keyword matching with priority logic.
-    
-    Returns a formatted topic name or empty string if no topic found.
-    
-    Priority: Most specific topic wins over general topic.
-    
-    Examples:
-        "what is probability in math" -> "Probability"
-        "what is NLP in machine learning" -> "Natural Language Processing"
-        "explain CNN with example" -> "Convolutional Neural Network"
-        "explain linkedlist in depth" -> "Linked List"
-        "hello world" -> ""
-    """
-    original_message = message.lower()
-    print(f"[TOPIC EXTRACTION] Original message: '{message}'")
-    
-    # Priority 1: Most specific topics first
-    specific_topics = [
-        ("Convolutional Neural Network", ["cnn", "convolutional neural network"]),
-        ("Natural Language Processing", ["nlp", "natural language processing"]),
-        ("Deep Learning", ["deep learning"]),
-        ("Machine Learning", ["machine learning"]),
-        ("Binary Search", ["binary search"]),
-        ("Linked List", ["linked list", "linkedlist"]),
-        ("Array", ["array"]),
-        ("Stack", ["stack"]),
-        ("Queue", ["queue"]),
-        ("Tree", ["tree"]),
-        ("Graph", ["graph"]),
-        ("Recursion", ["recursion", "recursive"]),
-        ("Neural Network", ["neural network", "nn", "/n"]),
-        ("Probability", ["probability", "probabilities"]),
-    ]
-    
-    # Check for most specific topics first
-    for topic_name, keywords in specific_topics:
-        for keyword in keywords:
-            if keyword in original_message:
-                print(f"[TOPIC EXTRACTION] Found specific topic: {topic_name}")
-                return topic_name
-    
-    # No topic detected
-    print(f"[TOPIC EXTRACTION] No topic detected for: '{message}'")
-    return ""
+    if not message:
+        return ""
+
+    STOP_WORDS = {
+        "what", "is", "explain", "in", "the", "a", "an", "with", "example",
+        "about", "of", "on", "for", "me", "tell", "teach", "define",
+        "describe", "to", "are", "how", "why", "do", "does", "please", "kindly",
+        "concept", "topic", "question", "answer", "and", "or"
+    }
+
+    MAPPINGS = {
+        "ml": "Machine Learning",
+        "ai": "Artificial Intelligence",
+        "cnn": "Convolutional Neural Network",
+        "nlp": "Natural Language Processing"
+    }
+
+    words = message.split()
+    filtered = []
+
+    for w in words:
+        clean_w = w.lower().strip(".,?!:;()")
+
+        if not clean_w or clean_w in STOP_WORDS:
+            continue
+
+        if clean_w in MAPPINGS:
+            filtered.append(MAPPINGS[clean_w])
+        else:
+            filtered.append(clean_w)
+
+    if not filtered:
+        return ""
+
+    topic = " ".join(filtered)
+
+    protected = _extract_protected_topic(topic)
+    if protected:
+        return _format_topic_label(protected)
+
+    return _format_topic_label(topic)
