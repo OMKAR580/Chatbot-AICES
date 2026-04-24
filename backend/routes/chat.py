@@ -158,13 +158,6 @@ class ChatRequestTracker:
 REQUEST_TRACKERS: dict[str, ChatRequestTracker] = {}
 
 
-def extract_topic(message: str) -> str:
-    """Return only the concept/topic, without prompt or mode wording."""
-    print(f"[CHAT ENDPOINT] Extracting topic from original message: '{message}'")
-    topics, _ = parse_chat_intent(message=message)
-    extracted_topic = topics[0] if len(topics) == 1 else ""
-    print(f"[CHAT ENDPOINT] Extracted topic: '{extracted_topic}'")
-    return extracted_topic
 
 
 def parse_chat_intent(
