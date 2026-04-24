@@ -902,8 +902,14 @@ def build_prompt(
         code_language=normalized_code_language,
         target_words=target_words,
     )
+    language_instruction = _get_explicit_language_instruction(normalized_language)
 
     return (
+        "You are a helpful technical tutor.\n\n"
+        "Language instruction:\n"
+        f"{language_instruction}\n\n"
+        "Answer the user's question clearly and correctly.\n"
+        "Do not switch language.\n\n"
         f"User question: {actual_question}\n"
         f"Detected topic: {details['title']}\n"
         f"Tutor mode: {normalized_mode}\n"
@@ -2021,11 +2027,24 @@ def _get_mode_guidance(mode: str) -> str:
 
 def _get_language_guidance(language: str) -> str:
     language_guidance = {
-        "English": "Write in clear English.",
-        "Hindi": "Write in simple Hindi and keep technical terms in English when useful.",
-        "Hinglish": "Write in natural Hinglish and keep technical terms in English.",
+        "English": "Answer in clear English.",
+        "Hindi": "Answer in Hindi.",
+        "Hinglish": "Answer in Hinglish (Hindi + English mix using Roman script, not pure Hindi script).",
     }
     return language_guidance.get(language, language_guidance["English"])
+
+
+def _get_explicit_language_instruction(language: str) -> str:
+    if language == "English":
+        return "Answer in clear English."
+
+    if language == "Hindi":
+        return "Answer in Hindi."
+
+    if language == "Hinglish":
+        return "Answer in Hinglish (Hindi + English mix using Roman script, not pure Hindi script)."
+
+    return "Answer in clear English."
 
 
 def _get_response_mode_guidance(response_mode: str) -> str:
