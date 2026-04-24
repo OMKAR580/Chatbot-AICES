@@ -3,6 +3,7 @@
 from contextlib import asynccontextmanager
 import os
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,14 +16,21 @@ from backend.routes.quiz import router as quiz_router
 from backend.routes.recommendations import router as recommendations_router
 from backend.routes.user import router as user_router
 
+# Load environment variables
+load_dotenv()
+
+# Validate critical environment variables
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+AICES_DB_PATH = os.getenv("AICES_DB_PATH", "./data/aices.db")
+
+if not OPENAI_API_KEY:
+    raise ValueError("Missing OPENAI_API_KEY environment variable")
 
 def _get_allowed_origins() -> list[str]:
     """Read CORS origins from env, with safe local defaults for demos."""
-    raw_origins = os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
-    )
-    origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+    origins = [origin.strip() for origin in ALLOWED_ORIGINS.split(",") if origin.strip()]
     return origins or ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 
@@ -42,8 +50,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_get_allowed_origins(),
-    allow_credentials=False,
+    allow_origins=[
+        "https://chatbot-aices.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -63,4 +75,28 @@ def health_check():
         "status": "ok",
         "service": "aices-backend",
         "version": app.version,
+        "environment": {
+            "OPENAI_API_KEY": "configured" if OPENAI_API_KEY else "missing",
+            "OPENAI_MODEL": OPENAI_MODEL,
+            "ALLOWED_ORIGINS": ALLOWED_ORIGINS,
+            "AICES_DB_PATH": AICES_DB_PATH,
+        }
+    }
+
+@app.get("/debug")
+def debug_info():
+    """Debug endpoint for troubleshooting."""
+    return {
+        "status": "debug",
+        "environment": {
+            "OPENAI_API_KEY": "configured" if OPENAI_API_KEY else "missing",
+            "OPENAI_MODEL": OPENAI_MODEL,
+            "ALLOWED_ORIGINS": ALLOWED_ORIGINS,
+            "AICES_DB_PATH": AICES_DB_PATH,
+        },
+        "cors_origins": [
+            "https://chatbot-aices.vercel.app",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+        ]
     }
