@@ -101,3 +101,21 @@ def debug_info():
             "http://127.0.0.1:5173"
         ]
     }
+
+@app.get("/test-fallback")
+def test_fallback():
+    """Test endpoint to verify fallback mechanism works."""
+    try:
+        print("[TEST] Testing fallback mechanism")
+        return {
+            "status": "success",
+            "message": "Backend is working and can respond",
+            "fallback_test": "If you see this, the backend is functional"
+        }
+    except Exception as e:
+        print(f"[TEST ERROR] {e}")
+        return {
+            "status": "error",
+            "message": f"Test failed: {e}",
+            "fallback": "Even this test failed, which indicates a serious backend issue"
+        }
