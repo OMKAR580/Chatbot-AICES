@@ -31,25 +31,26 @@ MAX_RESPONSE_WORDS = 500
 SHORT_MAX_TOKENS = 150
 NORMAL_MAX_TOKENS = 280
 DETAILED_MAX_TOKENS = 420
+REGENERATION_TIMEOUT_SECONDS = min(3.0, DEFAULT_TIMEOUT_SECONDS)
 
-EXPLANATION_SYSTEM_PROMPT = """You are AICES, a fast computer science tutor.
-Teach only the exact topic given by the user.
-If the topic is unclear, ask one short clarification question instead of guessing.
-Never rename the topic into a different concept.
-Return concise markdown using only these sections:
-## Definition
-## Explanation
-## Example
-## Code
-## Key Points
-Rules:
-- Keep the prose short, clear, and technically correct.
-- Short mode: about 100 words of prose.
-- Detailed mode: about 300 words of prose.
-- Never exceed 500 words of prose.
-- Use exactly one short example and one short runnable code snippet.
-- Put complexity and one caution inside Key Points.
-- Skip long analogies, dry runs, and repetition unless explicitly requested.
+EXPLANATION_SYSTEM_PROMPT = """You are a precise technical tutor.
+Answer ONLY what the user asked.
+Do NOT guess.
+Do NOT change the topic.
+Do NOT give generic definitions.
+If the question is specific (like CNN), give a detailed explanation of THAT topic only.
+If unsure, say "I am not fully sure" instead of hallucinating.
+
+Adapt the answer to the question:
+- If the user asks "in depth", give a detailed explanation.
+- If the user asks "simple", keep it simple.
+- If the user asks for code, include code.
+- If the user does not ask for code, do NOT include code unnecessarily.
+
+Always stay relevant to the question.
+Use clear markdown only when it helps readability.
+Do not force a fixed template.
+Keep the response concise, technically correct, and within the requested level of detail.
 """
 
 QUIZ_SYSTEM_PROMPT = """You are AICES, a computer science quiz generator.
@@ -62,19 +63,13 @@ Return one short study feedback message only.
 Do not add markdown or JSON unless asked.
 """
 
-REQUIRED_EXPLANATION_HEADINGS = (
-    "Definition",
-    "Explanation",
-    "Example",
-    "Code",
-    "Key Points",
-)
 LOW_QUALITY_PATTERNS = (
     r"\bis the idea you are trying to learn\b",
     r"\bthis topic is something\b",
     r"\bthis concept is important because it helps you learn\b",
     r"\breal-life analogy\b",
     r"\bdry run\b",
+    r"\bgeneric definition\b",
 )
 
 SUPPORTED_LANGUAGES = {"English", "Hindi", "Hinglish"}
@@ -84,8 +79,14 @@ SUPPORTED_RESPONSE_MODES = {"auto", "short", "detailed", "notes", "code", "inter
 SUPPORTED_CODE_LANGUAGES = {"Python", "Java", "C"}
 
 CONCEPT_ALIASES = {
+    "cnn": "cnn",
+    "cnn / convolutional neural network": "cnn",
+    "convolutional neural network": "cnn",
     "array": "array",
     "arrays": "array",
+    "machine learning": "machine learning",
+    "deep learning": "deep learning",
+    "neural network": "neural network",
     "linked list": "linked list",
     "linked lists": "linked list",
     "linkedlist": "linked list",
@@ -101,9 +102,197 @@ CONCEPT_ALIASES = {
     "binary-search": "binary search",
     "binarysearch": "binary search",
     "binary searching": "binary search",
+    "tree": "tree",
+    "graph": "graph",
+    "dbms": "dbms",
+    "os": "os",
+    "cn": "cn",
+    "oop": "oop",
+    "dsa": "dsa",
+}
+TOPIC_VALIDATION_TERMS = {
+    "cnn": ("cnn", "convolutional neural network", "convolution"),
+    "machine learning": ("machine learning",),
+    "deep learning": ("deep learning",),
+    "neural network": ("neural network",),
+    "linked list": ("linked list",),
+    "binary search": ("binary search",),
+    "array": ("array",),
+    "stack": ("stack",),
+    "queue": ("queue",),
+    "tree": ("tree",),
+    "graph": ("graph",),
+    "dbms": ("dbms", "database management system"),
+    "os": (" os ", "operating system"),
+    "cn": (" cn ", "computer networks"),
+    "oop": ("oop", "object oriented"),
+    "dsa": ("dsa", "data structures and algorithms"),
+    "recursion": ("recursion", "recursive"),
 }
 
 CONCEPT_LIBRARY: dict[str, dict[str, str]] = {
+    "cnn": {
+        "title": "CNN / Convolutional Neural Network",
+        "definition": "A CNN, or Convolutional Neural Network, is a deep learning model designed to learn patterns from grid-like data such as images.",
+        "simple_definition": "A CNN is a neural network that looks at small parts of an image, learns useful patterns, and then uses them to classify or detect things.",
+        "simple": "Instead of reading every pixel independently, a CNN scans an image using filters. It first learns edges and shapes, then combines them into more complex features.",
+        "standard": "A CNN processes image-like input through convolution layers, activation functions, pooling, flattening, and dense layers. This makes it strong at extracting spatial patterns while using far fewer parameters than a fully connected network on raw pixels.",
+        "analogy": "Think of looking at an image through small windows. Each window checks for a pattern such as an edge, corner, or texture, and later layers combine those patterns into higher-level understanding.",
+        "types": "Common CNN variants include simple image classifiers, LeNet-style networks, AlexNet, VGG, ResNet, and object-detection backbones.",
+        "example": "A CNN can classify handwritten digits by learning stroke shapes, curves, and combinations of those local features.",
+        "technical": "Convolution layers apply kernels or filters across the input to create feature maps. Pooling reduces spatial size, flattening converts feature maps into vectors, and dense layers perform the final prediction.",
+        "operations": "- convolution with filters/kernels\n- activation such as ReLU\n- pooling to reduce feature-map size\n- flattening\n- dense layers for final prediction",
+        "complexity": "The cost depends on image size, number of filters, kernel size, and network depth. CNNs trade more compute for strong feature extraction on image-like data.",
+        "uses": "CNNs are widely used for image classification, object detection, face recognition, medical imaging, and other computer vision tasks in machine learning and deep learning.",
+        "code_example": (
+            "from tensorflow.keras import layers, models\n\n"
+            "model = models.Sequential([\n"
+            "    layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),\n"
+            "    layers.MaxPooling2D((2, 2)),\n"
+            "    layers.Flatten(),\n"
+            "    layers.Dense(64, activation='relu'),\n"
+            "    layers.Dense(10, activation='softmax')\n"
+            "])\n\n"
+            "print(model.layers[0].__class__.__name__)"
+        ),
+        "code_output": "Conv2D",
+        "code_walkthrough": (
+            "1. `Conv2D` applies filters to the image and creates feature maps.\n"
+            "2. `MaxPooling2D` reduces the spatial size while keeping important signals.\n"
+            "3. `Flatten` turns feature maps into a single vector.\n"
+            "4. Dense layers use those learned features to predict the final class."
+        ),
+        "interview_points": (
+            "- CNN stands for Convolutional Neural Network.\n"
+            "- Convolution layers learn local spatial patterns using filters.\n"
+            "- Pooling reduces spatial size and helps with efficiency.\n"
+            "- Flattening and dense layers turn learned features into final predictions."
+        ),
+        "common_mistakes": (
+            "- Confusing convolution with a fully connected layer.\n"
+            "- Ignoring the role of filters/kernels and feature maps.\n"
+            "- Treating pooling, flattening, and dense layers as the same operation."
+        ),
+        "key_points": "- Great for image-like data\n- Learns local features first, then higher-level patterns\n- Uses convolution, pooling, flattening, and dense layers",
+        "takeaway": "Use a CNN when the question is about learning spatial patterns from images or similar structured data.",
+    },
+    "machine learning": {
+        "title": "Machine Learning",
+        "definition": "Machine learning is a field of AI where systems learn patterns from data to make predictions or decisions.",
+        "simple_definition": "Machine learning means teaching a system by showing it data instead of hardcoding every rule.",
+        "simple": "The model studies examples, finds patterns, and then uses those patterns on new data.",
+        "standard": "Machine learning builds models from data so that they can generalize to unseen examples. Common settings include supervised, unsupervised, and reinforcement learning.",
+        "analogy": "It is like learning from practice problems instead of memorizing one fixed answer sheet.",
+        "types": "Main types are supervised learning, unsupervised learning, reinforcement learning, classification, regression, and clustering.",
+        "example": "Email spam detection is a classic machine learning problem where a model learns from labeled emails.",
+        "technical": "A machine learning system usually includes data preprocessing, feature representation, model training, validation, and evaluation.",
+        "operations": "- collect and clean data\n- train a model\n- validate the model\n- predict on new data",
+        "complexity": "Complexity depends on the algorithm, dataset size, feature count, and training setup.",
+        "uses": "Prediction, recommendation, classification, anomaly detection, and forecasting across many domains.",
+        "code_example": (
+            "from sklearn.linear_model import LogisticRegression\n\n"
+            "model = LogisticRegression()\n"
+            "print(type(model).__name__)"
+        ),
+        "code_output": "LogisticRegression",
+        "code_walkthrough": (
+            "1. We create a machine learning model object.\n"
+            "2. In a real workflow, we would fit it on training data.\n"
+            "3. Then we would use it to make predictions on new examples."
+        ),
+        "interview_points": (
+            "- Machine learning learns patterns from data.\n"
+            "- Generalization to unseen data is the main goal.\n"
+            "- Data quality and evaluation matter as much as the model."
+        ),
+        "common_mistakes": (
+            "- Assuming more data always fixes a bad problem setup.\n"
+            "- Ignoring overfitting and evaluation quality.\n"
+            "- Confusing training accuracy with real-world performance."
+        ),
+        "key_points": "- Learns from data\n- Used for prediction and pattern detection\n- Evaluation is critical",
+        "takeaway": "Machine learning is about using data to build models that perform useful tasks on unseen inputs.",
+    },
+    "deep learning": {
+        "title": "Deep Learning",
+        "definition": "Deep learning is a branch of machine learning that uses multi-layer neural networks to learn complex patterns.",
+        "simple_definition": "Deep learning is machine learning with many neural-network layers that learn increasingly complex features.",
+        "simple": "Earlier layers learn simple patterns, and deeper layers combine them into more advanced understanding.",
+        "standard": "Deep learning trains layered neural networks end to end, often on large datasets, to learn representations automatically instead of relying heavily on manual feature engineering.",
+        "analogy": "It is like building understanding step by step: simple shapes first, then parts, then full objects.",
+        "types": "Common deep learning models include feedforward neural networks, CNNs, RNNs, LSTMs, and transformers.",
+        "example": "Image recognition and language modeling are classic deep learning applications.",
+        "technical": "Deep learning relies on forward propagation, backpropagation, optimization, activation functions, and layered feature learning.",
+        "operations": "- forward pass\n- loss computation\n- backpropagation\n- parameter update",
+        "complexity": "Training can be computationally expensive and depends on model depth, parameter count, and dataset size.",
+        "uses": "Computer vision, speech recognition, NLP, recommendation, and generative AI.",
+        "code_example": (
+            "from tensorflow.keras import layers, models\n\n"
+            "model = models.Sequential([\n"
+            "    layers.Dense(32, activation='relu', input_shape=(10,)),\n"
+            "    layers.Dense(1)\n"
+            "])\n"
+            "print(len(model.layers))"
+        ),
+        "code_output": "2",
+        "code_walkthrough": (
+            "1. We create a neural network with stacked layers.\n"
+            "2. The hidden layer learns features.\n"
+            "3. The final layer produces the output."
+        ),
+        "interview_points": (
+            "- Deep learning is a subset of machine learning.\n"
+            "- It uses multiple neural-network layers.\n"
+            "- It can learn features automatically from raw or lightly processed data."
+        ),
+        "common_mistakes": (
+            "- Treating deep learning as separate from machine learning.\n"
+            "- Ignoring data size, compute cost, and overfitting.\n"
+            "- Using deep models when a simpler model is enough."
+        ),
+        "key_points": "- Multi-layer neural networks\n- Strong for complex pattern learning\n- Needs data and compute",
+        "takeaway": "Deep learning is most useful when layered representation learning gives a clear advantage over simpler models.",
+    },
+    "neural network": {
+        "title": "Neural Network",
+        "definition": "A neural network is a model made of connected layers of neurons that transform input data into outputs.",
+        "simple_definition": "A neural network is a layered model that takes input, passes it through hidden layers, and produces an output.",
+        "simple": "Each layer learns part of the pattern, and the network improves by adjusting weights during training.",
+        "standard": "Neural networks learn nonlinear relationships by combining weighted sums, activation functions, and stacked layers. They are the foundation of deep learning.",
+        "analogy": "Think of information flowing through a sequence of checkpoints, where each checkpoint refines the signal.",
+        "types": "Common types include feedforward networks, CNNs, RNNs, LSTMs, and transformers.",
+        "example": "A neural network can classify images, predict values, or detect patterns in sequential data.",
+        "technical": "Neural networks use weights, biases, activation functions, forward propagation, and backpropagation to learn from data.",
+        "operations": "- input layer\n- hidden layers\n- activation functions\n- output layer\n- backpropagation during training",
+        "complexity": "Complexity depends on the number of layers, neurons, parameters, and training iterations.",
+        "uses": "Classification, regression, vision, NLP, time-series modeling, and recommendation systems.",
+        "code_example": (
+            "from tensorflow.keras import layers, models\n\n"
+            "model = models.Sequential([\n"
+            "    layers.Dense(16, activation='relu', input_shape=(4,)),\n"
+            "    layers.Dense(3, activation='softmax')\n"
+            "])\n"
+            "print(model.layers[-1].__class__.__name__)"
+        ),
+        "code_output": "Dense",
+        "code_walkthrough": (
+            "1. The first dense layer learns hidden features.\n"
+            "2. The final dense layer maps those features to class scores.\n"
+            "3. Training adjusts the weights to reduce error."
+        ),
+        "interview_points": (
+            "- Neural networks are made of layers, weights, and activations.\n"
+            "- Hidden layers help learn complex patterns.\n"
+            "- CNNs and transformers are specialized neural-network architectures."
+        ),
+        "common_mistakes": (
+            "- Confusing a neural network with a specific architecture like CNN.\n"
+            "- Ignoring activation functions and training dynamics.\n"
+            "- Assuming deeper always means better."
+        ),
+        "key_points": "- Layered model\n- Learns nonlinear patterns\n- Core building block of deep learning",
+        "takeaway": "A neural network is the general layered model; CNNs are one specialized type of neural network.",
+    },
     "array": {
         "title": "Array",
         "definition": "An array is a linear data structure that stores multiple values in contiguous positions and lets us access elements by index.",
@@ -674,6 +863,7 @@ def _get_openrouter_api_key() -> str:
 
 def build_prompt(
     topic: str,
+    user_message: str | None,
     level: str,
     language: str,
     mode: str = "standard",
@@ -685,6 +875,7 @@ def build_prompt(
 ) -> str:
     """Build the explanation prompt sent to OpenRouter."""
     details = _get_concept_details(topic)
+    actual_question = (user_message or topic or details["title"]).strip()
     normalized_language = normalize_language(language)
     normalized_mode = mode if mode in SUPPORTED_MODES else "standard"
     normalized_response_mode = normalize_response_mode(response_mode)
@@ -698,34 +889,43 @@ def build_prompt(
         response_mode=normalized_response_mode,
         response_depth=normalized_response_depth,
     )
+    include_code = _should_include_code(
+        user_message=actual_question,
+        code_required=code_required,
+        response_mode=normalized_response_mode,
+    )
+    answer_style = _get_answer_style_instruction(
+        mode=normalized_mode,
+        response_mode=normalized_response_mode,
+        response_depth=normalized_response_depth,
+        include_code=include_code,
+        code_language=normalized_code_language,
+        target_words=target_words,
+    )
 
     return (
-        f"Teach the exact topic: {details['title']}\n"
-        f"Learner level: {level}\n"
+        f"User question: {actual_question}\n"
+        f"Detected topic: {details['title']}\n"
+        f"Tutor mode: {normalized_mode}\n"
         f"Language: {normalized_language}\n"
-        f"Mode: {normalized_mode}\n"
+        f"Learner level: {level}\n"
         f"Response mode: {normalized_response_mode}\n"
         f"Target prose length: about {target_words} words, never more than {MAX_RESPONSE_WORDS} words\n"
         f"Preferred code language: {normalized_code_language}\n"
         f"Weak areas to reinforce if relevant: {weak_area_text}\n\n"
-        "Return only these markdown headings and keep the explanation focused on the named topic.\n"
-        "## Definition\n"
-        "## Explanation\n"
-        "## Example\n"
-        "## Code\n"
-        "## Key Points\n\n"
         "Tutor requirements:\n"
         f"- {_get_level_guidance(level)}\n"
         f"- {_get_mode_guidance(normalized_mode)}\n"
         f"- {_get_language_guidance(normalized_language)}\n"
         f"- {_get_response_mode_guidance(normalized_response_mode)}\n"
-        f"- {_get_code_guidance(True, normalized_code_language, normalized_response_depth, normalized_mode, normalized_response_mode)}\n"
+        f"- {_get_code_guidance(include_code, normalized_code_language, normalized_response_depth, normalized_mode, normalized_response_mode)}\n"
+        "- Answer the actual user question, not only the detected topic label.\n"
+        "- If the user asks about a specific concept such as CNN, answer that exact concept.\n"
         "- If the topic is unclear, ask one short clarification question instead of guessing.\n"
         "- Do not reinterpret the topic as a different concept.\n"
-        "- Use one short example only.\n"
-        "- Use one short runnable code snippet only.\n"
-        "- Put complexity, use case, and one common mistake inside Key Points.\n"
-        "- Skip long analogies, dry runs, and repeated explanations.\n\n"
+        "- Do not force Definition/Example/Code sections if they are not relevant.\n"
+        "- Prefer direct explanation over generic textbook wording.\n"
+        f"- {answer_style}\n\n"
         "Reference context for this topic:\n"
         f"- Canonical title: {details['title']}\n"
         f"- Core definition: {details['definition']}\n"
@@ -787,6 +987,7 @@ def build_feedback_prompt(
 
 def generate_explanation(
     topic: str,
+    user_message: str | None,
     level: str,
     language: str,
     mode: str = "standard",
@@ -799,8 +1000,15 @@ def generate_explanation(
     """Generate an adaptive explanation using OpenRouter."""
     normalized_response_mode = normalize_response_mode(response_mode)
     normalized_response_depth = _resolve_response_depth(response_depth, normalized_response_mode)
+    actual_question = (user_message or topic).strip()
+    include_code = _should_include_code(
+        user_message=actual_question,
+        code_required=code_required,
+        response_mode=normalized_response_mode,
+    )
     prompt = build_prompt(
         topic=topic,
+        user_message=user_message,
         level=level,
         language=language,
         mode=mode,
@@ -824,6 +1032,7 @@ def generate_explanation(
     except AIServiceTimeoutError:
         return _fallback_explanation(
             topic=topic,
+            user_message=actual_question,
             level=level,
             language=language,
             mode=mode,
@@ -837,6 +1046,7 @@ def generate_explanation(
     except Exception:
         return _fallback_explanation(
             topic=topic,
+            user_message=actual_question,
             level=level,
             language=language,
             mode=mode,
@@ -848,20 +1058,57 @@ def generate_explanation(
         )
 
     normalized_output = _normalize_explanation_markdown(output_text)
-    if _should_use_fallback_explanation(
+    if _should_regenerate_explanation(
         normalized_output,
         topic,
+        user_message=actual_question,
         response_mode=normalized_response_mode,
         response_depth=normalized_response_depth,
+        code_required=include_code,
     ):
+        try:
+            retry_output = _call_openrouter(
+                _build_regeneration_prompt(
+                    topic=topic,
+                    user_message=actual_question,
+                    previous_answer=normalized_output,
+                    level=level,
+                    language=language,
+                    mode=mode,
+                    response_depth=normalized_response_depth,
+                    response_mode=normalized_response_mode,
+                    code_required=include_code,
+                    code_language=code_language,
+                ),
+                system_prompt=EXPLANATION_SYSTEM_PROMPT,
+                max_tokens=_get_max_tokens_for_response(
+                    response_mode=normalized_response_mode,
+                    response_depth=normalized_response_depth,
+                ),
+                timeout_seconds=REGENERATION_TIMEOUT_SECONDS,
+            )
+            normalized_retry_output = _normalize_explanation_markdown(retry_output)
+            if not _should_regenerate_explanation(
+                normalized_retry_output,
+                topic,
+                user_message=actual_question,
+                response_mode=normalized_response_mode,
+                response_depth=normalized_response_depth,
+                code_required=include_code,
+            ):
+                return normalized_retry_output
+        except Exception:
+            pass
+
         return _fallback_explanation(
             topic=topic,
+            user_message=actual_question,
             level=level,
             language=language,
             mode=mode,
             response_depth=normalized_response_depth,
             response_mode=normalized_response_mode,
-            code_required=code_required,
+            code_required=include_code,
             code_language=code_language,
             weak_areas=weak_areas,
         )
@@ -1064,19 +1311,23 @@ def _extract_error_message(response: Any, *, status_code: int) -> str:
     return f"OpenRouter returned HTTP {status_code}."
 
 
-def _should_use_fallback_explanation(
+def _should_regenerate_explanation(
     output_text: str,
     topic: str,
     *,
+    user_message: str,
     response_mode: str,
     response_depth: str,
+    code_required: bool,
 ) -> bool:
     normalized_output = _normalize_explanation_markdown(output_text)
     lowered_output = normalized_output.lower()
     normalized_topic = _normalize_topic_key(topic)
-    topic_words = [word for word in normalized_topic.split() if len(word) > 2]
+    validation_terms = _get_topic_validation_terms(normalized_topic)
     prose_words = _count_words_without_code(normalized_output)
     target_words = _get_target_word_count(response_mode=response_mode, response_depth=response_depth)
+    minimum_words = _get_minimum_word_count(response_mode=response_mode, response_depth=response_depth)
+    asked_terms = _get_query_validation_terms(user_message=user_message, normalized_topic=normalized_topic)
 
     if any(re.search(pattern, lowered_output, flags=re.IGNORECASE) for pattern in LOW_QUALITY_PATTERNS):
         return True
@@ -1084,17 +1335,18 @@ def _should_use_fallback_explanation(
     if prose_words > min(MAX_RESPONSE_WORDS, target_words + 120):
         return True
 
+    if prose_words < minimum_words:
+        return True
+
+    if asked_terms and not any(term in lowered_output for term in asked_terms):
+        return True
+
     if normalized_topic in CONCEPT_LIBRARY:
-        heading_matches = sum(
-            1
-            for heading in REQUIRED_EXPLANATION_HEADINGS
-            if f"## {heading}".lower() in lowered_output
-        )
-        if heading_matches < len(REQUIRED_EXPLANATION_HEADINGS):
+        if validation_terms and not any(term in lowered_output for term in validation_terms):
             return True
 
-        if topic_words and not all(word in lowered_output for word in topic_words):
-            return True
+    if code_required and "```" not in normalized_output and "`" not in normalized_output:
+        return True
 
     return False
 
@@ -1125,6 +1377,146 @@ def _get_target_word_count(response_mode: str, response_depth: str) -> int:
         return DETAILED_RESPONSE_WORDS
 
     return NORMAL_RESPONSE_WORDS
+
+
+def _get_minimum_word_count(response_mode: str, response_depth: str) -> int:
+    target_words = _get_target_word_count(response_mode=response_mode, response_depth=response_depth)
+    if target_words <= SHORT_RESPONSE_WORDS:
+        return 35
+
+    if target_words >= DETAILED_RESPONSE_WORDS:
+        return 90
+
+    return 60
+
+
+def _get_topic_validation_terms(normalized_topic: str) -> tuple[str, ...]:
+    explicit_terms = TOPIC_VALIDATION_TERMS.get(normalized_topic)
+    if explicit_terms is not None:
+        return explicit_terms
+
+    return tuple(word for word in normalized_topic.split() if len(word) > 2)
+
+
+def _get_query_validation_terms(user_message: str, normalized_topic: str) -> tuple[str, ...]:
+    lowered_message = f" {user_message.strip().lower()} "
+    terms: list[str] = []
+
+    explicit_terms = TOPIC_VALIDATION_TERMS.get(normalized_topic)
+    if explicit_terms is not None:
+        terms.extend(explicit_terms)
+
+    question_terms = (
+        "cnn",
+        "convolution",
+        "kernel",
+        "filter",
+        "pooling",
+        "flatten",
+        "dense",
+        "machine learning",
+        "deep learning",
+        "neural network",
+        "binary search",
+        "linked list",
+        "recursion",
+        "array",
+        "stack",
+        "queue",
+        "tree",
+        "graph",
+        "dbms",
+        "operating system",
+        "oop",
+        "dsa",
+    )
+    for term in question_terms:
+        if term in lowered_message and term not in terms:
+            terms.append(term)
+
+    return tuple(terms)
+
+
+def _should_include_code(user_message: str, code_required: bool, response_mode: str) -> bool:
+    if code_required or response_mode == "code":
+        return True
+
+    lowered_message = f" {user_message.strip().lower()} "
+    code_triggers = (
+        " code ",
+        " program ",
+        " implementation ",
+        " snippet ",
+        " example in ",
+        " with code",
+        "show code",
+        "write code",
+    )
+    return any(trigger in lowered_message for trigger in code_triggers)
+
+
+def _get_answer_style_instruction(
+    *,
+    mode: str,
+    response_mode: str,
+    response_depth: str,
+    include_code: bool,
+    code_language: str,
+    target_words: int,
+) -> str:
+    parts = [f"Aim for about {target_words} words of prose."]
+
+    if response_mode == "short":
+        parts.append("Keep the explanation crisp and high-signal.")
+    elif response_mode in {"detailed", "notes"} or response_depth == "detailed":
+        parts.append("Go deeper on the mechanism and important details.")
+
+    if mode == "simpler":
+        parts.append("Use simple language and short sentences.")
+    elif mode == "technical":
+        parts.append("Use precise technical language where helpful.")
+
+    if include_code:
+        parts.append(f"Include one short runnable {code_language} code snippet only if it directly helps.")
+    else:
+        parts.append("Do not include code unless the user explicitly asked for it.")
+
+    parts.append("Use headings only when they improve clarity.")
+    return " ".join(parts)
+
+
+def _build_regeneration_prompt(
+    *,
+    topic: str,
+    user_message: str,
+    previous_answer: str,
+    level: str,
+    language: str,
+    mode: str,
+    response_depth: str,
+    response_mode: str,
+    code_required: bool,
+    code_language: str,
+) -> str:
+    return (
+        build_prompt(
+            topic=topic,
+            user_message=user_message,
+            level=level,
+            language=language,
+            mode=mode,
+            response_depth=response_depth,
+            response_mode=response_mode,
+            code_required=code_required,
+            code_language=code_language,
+            weak_areas=None,
+        )
+        + "\n\nThe previous answer was too generic, too short, or not specific enough.\n"
+        + "Rewrite it once so it answers the exact question more precisely.\n"
+        + "Do not repeat generic filler.\n"
+        + "Previous answer:\n"
+        + previous_answer
+    )
 
 
 def _get_max_tokens_for_response(response_mode: str, response_depth: str) -> int:
@@ -1289,6 +1681,7 @@ def _normalize_correct_answer(raw_correct_answer: str, options: list[str]) -> st
 
 def _fallback_explanation(
     topic: str,
+    user_message: str | None,
     level: str,
     language: str,
     mode: str = "standard",
@@ -1300,11 +1693,20 @@ def _fallback_explanation(
     timed_out: bool = False,
 ) -> str:
     details = _get_concept_details(topic)
+    actual_question = (user_message or topic or details["title"]).strip()
     normalized_language = normalize_language(language)
     normalized_mode = mode if mode in SUPPORTED_MODES else "standard"
     normalized_response_mode = normalize_response_mode(response_mode)
     normalized_code_language = normalize_code_language(code_language)
+    include_code = _should_include_code(
+        user_message=actual_question,
+        code_required=code_required,
+        response_mode=normalized_response_mode,
+    )
     is_beginner = (level or "beginner").strip().lower() == "beginner" or normalized_mode == "simpler"
+    wants_detailed = normalized_response_mode in {"detailed", "notes"} or response_depth == "detailed"
+    wants_definition = bool(re.search(r"\b(what is|explain|teach|define)\b", actual_question, flags=re.IGNORECASE))
+    wants_example = wants_detailed or normalized_mode == "example" or "example" in actual_question.lower()
 
     definition = details["simple_definition"] if is_beginner else details["definition"]
     explanation_parts = [details["simple"] if is_beginner else details["standard"]]
@@ -1326,11 +1728,15 @@ def _fallback_explanation(
     if code_material:
         code_block = f"```{code_material['fence_language']}\n{code_material['code_example']}\n```"
 
-    sections: list[tuple[str, str]] = [
-        ("Definition", definition),
-        ("Explanation", explanation),
-        ("Example", example_text),
-        ("Code", code_block),
+    sections: list[tuple[str, str]] = []
+    if wants_definition:
+        sections.append(("Definition", definition))
+    sections.append(("Explanation", explanation))
+    if wants_example:
+        sections.append(("Example", example_text))
+    if include_code:
+        sections.append(("Code", code_block))
+    sections.append(
         (
             "Key Points",
             _build_key_points(
@@ -1339,10 +1745,10 @@ def _fallback_explanation(
                 response_mode=normalized_response_mode,
                 weak_areas=weak_areas,
             ),
-        ),
-    ]
+        )
+    )
 
-    body = _compose_study_note(details["title"], sections)
+    body = _compose_dynamic_study_note(details["title"], sections)
     if normalized_language == "Hindi":
         body = f"Chaliye is topic ko short notes me samajhte hain.\n\n{body}"
     elif normalized_language == "Hinglish":
@@ -1352,6 +1758,17 @@ def _fallback_explanation(
         body = f"Quick fallback summary:\n\n{body}"
 
     return _normalize_explanation_markdown(body)
+
+
+def _compose_dynamic_study_note(title: str, sections: list[tuple[str, str]]) -> str:
+    blocks = [f"## {title}"]
+    for label, content in sections:
+        cleaned_content = (content or "").strip()
+        if not cleaned_content:
+            continue
+        blocks.append(f"### {label}\n{cleaned_content}")
+
+    return "\n\n".join(blocks)
 
 
 def _compose_study_note(title: str, sections: list[tuple[str, str]]) -> str:
@@ -1613,11 +2030,11 @@ def _get_language_guidance(language: str) -> str:
 
 def _get_response_mode_guidance(response_mode: str) -> str:
     response_mode_guidance = {
-        "auto": "Prefer a compact answer with the required sections only.",
-        "short": "Aim for about 100 words of prose plus one small code snippet.",
-        "detailed": "Aim for about 300 words of prose plus one small code snippet.",
+        "auto": "Prefer a compact, relevant answer without forcing a fixed layout.",
+        "short": "Aim for about 100 words of prose.",
+        "detailed": "Aim for about 300 words of prose.",
         "notes": "Keep it crisp and revision-friendly.",
-        "code": "Make the code snippet especially clear and practical.",
+        "code": "If code is requested, make it especially clear and practical.",
         "interview": "Keep the wording sharp and high-signal.",
     }
     return response_mode_guidance.get(response_mode, response_mode_guidance["auto"])
@@ -1633,10 +2050,4 @@ def _get_code_guidance(
     if code_required or response_mode == "code":
         return f"Include one short runnable {code_language} code example."
 
-    if response_depth == "detailed":
-        return f"Prefer one short clean {code_language} example."
-
-    if mode == "technical":
-        return f"If code helps, add one concise {code_language} example."
-
-    return "Include one simple code example only."
+    return "Do not include code unless the user explicitly asked for it."

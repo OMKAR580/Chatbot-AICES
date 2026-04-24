@@ -498,6 +498,7 @@ def chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
         try:
             explanation = generate_explanation(
                 topic=topic,
+                user_message=message,
                 level=level,
                 language=language,
                 mode=mode,
