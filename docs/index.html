@@ -4,269 +4,260 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AICES - Adaptive Concept Studio</title>
+    <meta
+        name="description"
+        content="AI-powered adaptive learning tutor with multilingual chat, quizzes, and a learning dashboard."
+    >
     <style>
+        @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Sora:wght@400;600;700;800&display=swap");
+
+        :root {
+            --bg: #07131f;
+            --bg-soft: rgba(10, 28, 43, 0.82);
+            --panel: rgba(7, 22, 34, 0.84);
+            --border: rgba(114, 234, 255, 0.18);
+            --text: #eef7fb;
+            --muted: #a9c0cd;
+            --accent: #72eaff;
+            --accent-strong: #10b3d6;
+            --accent-warm: #f7b267;
+            --shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+        }
+
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            font-family: "Sora", "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(16, 179, 214, 0.22), transparent 30%),
+                radial-gradient(circle at bottom right, rgba(247, 178, 103, 0.18), transparent 28%),
+                linear-gradient(160deg, #030b12 0%, #07131f 45%, #0b1f2d 100%);
         }
-        
-        .container {
-            max-width: 900px;
-            width: 100%;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+
+        .shell {
+            width: min(1120px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 32px 0 48px;
+        }
+
+        .hero {
+            position: relative;
             overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            padding: 32px;
+            background:
+                linear-gradient(135deg, rgba(10, 28, 43, 0.94), rgba(6, 18, 29, 0.88)),
+                var(--panel);
+            box-shadow: var(--shadow);
         }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 60px 40px;
-            text-align: center;
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(114, 234, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(114, 234, 255, 0.06) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), transparent);
+            pointer-events: none;
         }
-        
-        .header h1 {
-            font-size: 48px;
-            margin-bottom: 10px;
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border: 1px solid rgba(114, 234, 255, 0.24);
+            border-radius: 999px;
+            background: rgba(114, 234, 255, 0.08);
+            color: var(--accent);
+            font-size: 12px;
             font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
         }
-        
-        .header p {
-            font-size: 18px;
-            opacity: 0.95;
-            margin-bottom: 5px;
+
+        .eyebrow::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-warm);
+            box-shadow: 0 0 18px rgba(247, 178, 103, 0.7);
         }
-        
-        .tagline {
-            font-size: 14px;
-            opacity: 0.8;
+
+        h1 {
+            margin: 22px 0 14px;
+            max-width: 760px;
+            font-size: clamp(2.75rem, 8vw, 5rem);
+            line-height: 0.96;
+            letter-spacing: -0.05em;
         }
-        
-        .content {
-            padding: 60px 40px;
+
+        .lede {
+            max-width: 720px;
+            margin: 0;
+            color: var(--muted);
+            font-size: 1.05rem;
+            line-height: 1.85;
         }
-        
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-            margin-bottom: 50px;
-        }
-        
-        .feature {
-            padding: 20px;
-            border-left: 4px solid #667eea;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-        
-        .feature h3 {
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-        
-        .feature p {
-            color: #666;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        
-        .cta-section {
-            background: #f8f9fa;
-            padding: 40px;
-            border-radius: 12px;
-            margin-top: 40px;
-            text-align: center;
-        }
-        
-        .cta-section h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 28px;
-        }
-        
-        .buttons {
+
+        .meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 20px;
+            gap: 12px;
+            margin-top: 28px;
         }
-        
-        .btn {
-            padding: 14px 28px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-            display: inline-block;
+
+        .meta span {
+            padding: 10px 14px;
+            border: 1px solid rgba(114, 234, 255, 0.14);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--muted);
+            font-size: 0.92rem;
         }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-        
-        .btn-secondary {
-            background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-        }
-        
-        .btn-secondary:hover {
-            background: #f0f4ff;
-        }
-        
-        .tech-stack {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
             margin-top: 30px;
         }
-        
-        .tech-item {
-            padding: 15px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 600;
-            color: #667eea;
-            font-size: 14px;
-        }
-        
-        .footer {
-            background: #f8f9fa;
-            padding: 30px 40px;
-            text-align: center;
-            border-top: 1px solid #ddd;
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .footer a {
-            color: #667eea;
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 20px;
+            border-radius: 18px;
             text-decoration: none;
+            font-weight: 700;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+        }
+
+        .button-primary {
+            color: #031018;
+            background: linear-gradient(135deg, var(--accent), #b5f5ff);
+            box-shadow: 0 12px 26px rgba(114, 234, 255, 0.24);
+        }
+
+        .button-secondary {
+            color: var(--text);
+            border: 1px solid rgba(114, 234, 255, 0.26);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .stack {
+            margin-top: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(114, 234, 255, 0.18);
+            background: rgba(10, 28, 43, 0.62);
+            color: var(--text);
+            font-size: 0.88rem;
             font-weight: 600;
         }
-        
-        .footer a:hover {
-            text-decoration: underline;
+
+        .badge code {
+            font-family: "JetBrains Mono", monospace;
+            color: var(--accent);
+            font-size: 0.8rem;
         }
-        
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 36px;
+
+        .footer {
+            margin-top: 18px;
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 720px) {
+            .shell {
+                width: min(100% - 20px, 1120px);
+                padding: 20px 0 30px;
             }
-            
-            .content {
-                padding: 40px 20px;
+
+            .hero {
+                padding: 24px 20px;
+                border-radius: 24px;
             }
-            
-            .buttons {
-                flex-direction: column;
-            }
-            
-            .btn {
+
+            .button {
                 width: 100%;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🤖 AICES</h1>
-            <p><strong>Adaptive Concept Studio</strong></p>
-            <p class="tagline">AI-powered adaptive learning platform</p>
-        </div>
-        
-        <div class="content">
-            <div class="features">
-                <div class="feature">
-                    <h3>🎯 AI-Powered</h3>
-                    <p>Real-time adaptive concept explanations using OpenAI's latest models</p>
-                </div>
-                <div class="feature">
-                    <h3>📊 Smart Quizzes</h3>
-                    <p>Intelligent quiz generation that adapts to your learning level</p>
-                </div>
-                <div class="feature">
-                    <h3>📈 Progress Tracking</h3>
-                    <p>Real-time mastery percentages and personalized recommendations</p>
-                </div>
-                <div class="feature">
-                    <h3>💬 Multi-Language</h3>
-                    <p>Support for Hinglish, English, and more languages</p>
-                </div>
-                <div class="feature">
-                    <h3>💾 Learning History</h3>
-                    <p>Persistent chat history and quiz results</p>
-                </div>
-                <div class="feature">
-                    <h3>🌙 Modern UI</h3>
-                    <p>Beautiful dark neon interface with responsive design</p>
-                </div>
-            </div>
-            
-            <div class="cta-section">
-                <h2>🚀 Get Started</h2>
-                <p>Explore the project, run it locally, or deploy to production</p>
-                
-                <div class="buttons">
-                    <a href="https://github.com/OMKAR580/Chatbot-AICES" class="btn btn-primary">
-                        View on GitHub
-                    </a>
-                    <a href="https://github.com/OMKAR580/Chatbot-AICES#local-setup" class="btn btn-secondary">
-                        Setup Guide
-                    </a>
-                    <a href="https://github.com/OMKAR580/Chatbot-AICES/blob/main/DEPLOYMENT.md" class="btn btn-secondary">
-                        Deploy Now
-                    </a>
-                </div>
-                
-                <h3 style="margin-top: 40px; margin-bottom: 20px; color: #333;">Tech Stack</h3>
-                <div class="tech-stack">
-                    <div class="tech-item">FastAPI</div>
-                    <div class="tech-item">React 18</div>
-                    <div class="tech-item">Vite</div>
-                    <div class="tech-item">Tailwind CSS</div>
-                    <div class="tech-item">SQLAlchemy</div>
-                    <div class="tech-item">OpenAI</div>
-                    <div class="tech-item">SQLite</div>
-                    <div class="tech-item">Axios</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p>
-                Made with ❤️ by <a href="https://github.com/OMKAR580">Omkar</a> • 
-                <a href="https://github.com/OMKAR580/Chatbot-AICES/blob/main/LICENSE">MIT License</a> • 
-                <a href="https://github.com/OMKAR580/Chatbot-AICES">GitHub</a>
+    <main class="shell">
+        <section class="hero">
+            <div class="eyebrow">Adaptive Learning Platform</div>
+            <h1>AICES<br>Adaptive Concept Studio</h1>
+            <p class="lede">
+                AI-powered adaptive learning tutor with guided chat, multilingual explanations,
+                topic-aware quiz generation, and a learner dashboard for tracking progress over time.
             </p>
-        </div>
-    </div>
+
+            <div class="meta">
+                <span>Frontend live on Vercel</span>
+                <span>FastAPI backend deployed on Render</span>
+                <span>Built for chat, quizzes, and adaptive recommendations</span>
+            </div>
+
+            <div class="actions">
+                <a
+                    class="button button-primary"
+                    href="https://chatbot-aices.vercel.app"
+                    rel="noreferrer"
+                    target="_blank"
+                >
+                    Live Demo
+                </a>
+                <a
+                    class="button button-secondary"
+                    href="https://github.com/OMKAR580/Chatbot-AICES"
+                    rel="noreferrer"
+                    target="_blank"
+                >
+                    GitHub Repo
+                </a>
+            </div>
+
+            <div class="stack" aria-label="Tech stack badges">
+                <span class="badge"><code>React</code> Frontend UI</span>
+                <span class="badge"><code>Vite</code> Build Tooling</span>
+                <span class="badge"><code>FastAPI</code> Backend API</span>
+                <span class="badge"><code>Python</code> App Logic</span>
+                <span class="badge"><code>OpenRouter</code> AI Responses</span>
+                <span class="badge"><code>Render</code> API Hosting</span>
+                <span class="badge"><code>Vercel</code> Frontend Hosting</span>
+            </div>
+
+            <p class="footer">
+                AICES helps learners move from quick concept clarity to quiz practice and dashboard-based review in one connected workflow.
+            </p>
+        </section>
+    </main>
 </body>
 </html>

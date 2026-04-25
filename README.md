@@ -1,262 +1,199 @@
-# AICES — Adaptive Concept Studio
+# AICES - Adaptive Concept Studio
 
-[![GitHub](https://img.shields.io/badge/GitHub-OMKAR580%2FChatbot--AICES-blue?logo=github)](https://github.com/OMKAR580/Chatbot-AICES)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)](https://www.python.org/)
-[![React](https://img.shields.io/badge/React-18%2B-blue?logo=react)](https://react.dev)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-chatbot--aices.vercel.app-0f766e?logo=vercel&logoColor=white)](https://chatbot-aices.vercel.app)
+[![React](https://img.shields.io/badge/React-18%2B-61DAFB?logo=react&logoColor=061a1c)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Vercel](https://img.shields.io/badge/Vercel-Frontend-000000?logo=vercel&logoColor=white)](https://vercel.com/)
+[![Render](https://img.shields.io/badge/Render-Backend-5A67D8?logo=render&logoColor=white)](https://render.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-16a34a.svg)](LICENSE)
 
-An AI-powered adaptive learning chatbot that dynamically adjusts to each learner's pace and comprehension level.
+AICES is an AI-powered adaptive learning tutor that combines conversational teaching, multilingual support, quiz generation, and learner progress tracking in one full-stack experience.
 
-## 🌐 Live Demo
+Live demo: https://chatbot-aices.vercel.app
 
-| Platform | Link | Status |
-|----------|------|--------|
-| **Frontend** | [Vercel](https://vercel.com) *(Deploy to get link)* | ⏳ Ready to deploy |
-| **Backend** | [Render](https://render.com) *(Deploy to get link)* | ⏳ Ready to deploy |
-
-**Quick Deploy:** See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step guides
+Backend note: the production frontend is deployed on Vercel and connects to a FastAPI backend deployed separately on Render.
 
 ## Features
 
-- 🤖 **AI-Powered Explanations** — Real-time adaptive concept explanations using OpenAI
-- 🎯 **Intelligent Quizzes** — Adaptive quiz generation based on learner level
-- 📊 **Progress Tracking** — Mastery percentages, weak areas, and learning analytics
-- 🎓 **Adaptive Learning Path** — System adjusts difficulty based on performance
-- 💬 **Multi-Language Support** — Hinglish and English support
-- 🌙 **Dark Neon UI** — Modern, responsive React interface
-- 📱 **Real-Time Chat** — Interactive chat with streaming responses
-- 💾 **Learning History** — Persistent conversation and quiz history
+- AI tutor chat for guided concept explanations
+- English, Hindi, and Hinglish support
+- Topic detection for focused tutoring responses
+- Quiz generation and answer evaluation
+- Learning dashboard with mastery and weak-topic tracking
+- Recent chat memory for continuity
+- Adaptive recommendations based on learner activity
 
 ## Tech Stack
 
-### Backend
-- **Framework:** FastAPI (Python)
-- **Database:** SQLite (local) / PostgreSQL (production)
-- **AI Engine:** OpenAI API (gpt-4o-mini)
-- **ORM:** SQLAlchemy
-
 ### Frontend
-- **Framework:** React 18 + Vite
-- **Styling:** Tailwind CSS
-- **HTTP Client:** Axios
-- **Router:** React Router v6
+
+- React 18
+- Vite
+- React Router
+- Axios
+- Tailwind CSS
+- Vercel deployment
+
+### Backend
+
+- FastAPI
+- Python
+- SQLAlchemy
+- SQLite for local/demo persistence
+- OpenRouter for AI responses and quiz generation
+- Render deployment
 
 ## Project Structure
 
-```
-aices/
-├── backend/                    # FastAPI backend
-│   ├── main.py                # App entrypoint
-│   ├── database.py            # SQLAlchemy setup
-│   ├── models.py              # ORM models
-│   ├── schemas.py             # Pydantic schemas
-│   ├── routes/                # API endpoints
-│   │   ├── chat.py
-│   │   ├── quiz.py
-│   │   ├── history.py
-│   │   ├── progress.py
-│   │   ├── recommendations.py
-│   │   └── user.py
-│   └── services/              # Business logic
-│       ├── ai_service.py      # OpenAI integration
-│       ├── adaptation_engine.py
-│       ├── recommendation_engine.py
-│       └── topic_utils.py
-├── frontend/                   # React + Vite frontend
-│   ├── src/
-│   │   ├── main.jsx
-│   │   ├── App.jsx
-│   │   ├── pages/            # Page components
-│   │   ├── components/       # Reusable UI components
-│   │   ├── services/         # API calls
-│   │   └── utils/            # Helpers
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.js
-├── data/                       # SQLite databases
-├── requirements.txt            # Python dependencies
-└── README.md                   # This file
+```text
+.
+|-- backend/
+|   |-- routes/
+|   |-- services/
+|   |-- database.py
+|   |-- main.py
+|   |-- models.py
+|   `-- schemas.py
+|-- frontend/
+|   |-- src/
+|   |-- .env.example
+|   |-- package.json
+|   `-- vercel.json
+|-- docs/
+|   `-- index.html
+|-- .env.example
+|-- DEPLOYMENT.md
+|-- render.yaml
+|-- requirements.txt
+`-- README.md
 ```
 
 ## Local Setup
 
 ### Prerequisites
+
 - Python 3.9+
 - Node.js 18+
-- pip
 - npm
 
-### 1. Backend Setup
+### 1. Clone and install backend
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/aices.git
-cd aices
+git clone https://github.com/OMKAR580/Chatbot-AICES.git
+cd Chatbot-AICES
 
-# Create Python virtual environment
 python -m venv .venv
 
-# Activate virtual environment
-# On Windows:
-.venv\Scripts\activate
-# On macOS/Linux:
-source .venv/bin/activate
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
 
-# Install dependencies
+# macOS / Linux
+# source .venv/bin/activate
+
 pip install -r requirements.txt
-
-# Copy environment file
 cp .env.example .env
-
-# Edit .env with your OpenAI API key
-nano .env  # or use your preferred editor
 ```
 
-### 2. Frontend Setup
+Update `.env` with your actual API credentials before running the backend.
+
+### 2. Install frontend
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Copy environment file
 cp .env.example .env.local
-
-# Optional: Edit if using custom backend URL
-nano .env.local
+cd ..
 ```
 
-## Running Locally
+### 3. Run the app locally
 
-### Start Backend
+Start the FastAPI backend from the project root:
 
 ```bash
-# From project root
-.venv\Scripts\activate  # or `source .venv/bin/activate` on macOS/Linux
-python -m uvicorn backend.main:app --reload
+uvicorn backend.main:app --reload
 ```
 
-Backend will be available at: `http://127.0.0.1:8000`
-
-Health check: `curl http://127.0.0.1:8000/health`
-
-### Start Frontend
+Start the React frontend in a second terminal:
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Frontend will be available at: `http://localhost:5173`
+Default local URLs:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://127.0.0.1:8000`
+- Health check: `http://127.0.0.1:8000/health`
 
 ## Environment Variables
 
-### Backend (.env)
+### Backend `.env`
 
 ```env
-OPENAI_API_KEY=sk-...                    # Your OpenAI API key
-OPENAI_MODEL=gpt-4o-mini                 # Model to use
-AICES_DB_PATH=./data/aices.db            # Database path
-ALLOWED_ORIGINS=http://localhost:5173    # CORS origins (comma-separated)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_MODEL=mistralai/mistral-7b-instruct
+OPENROUTER_TIMEOUT_SECONDS=8
+AICES_DB_PATH=./data/aices.db
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://chatbot-aices.vercel.app
 ```
 
-### Frontend (.env.local)
+Optional production database:
 
 ```env
-VITE_API_BASE_URL=http://127.0.0.1:8000  # Backend URL
-VITE_AICES_USER_ID=user_001              # Demo user ID
+# DATABASE_URL=postgresql+psycopg://user:password@host:5432/aices
 ```
 
-## API Overview
+### Frontend `frontend/.env.local`
 
-### Health Check
-- `GET /health` — Service health status
-
-### User Management
-- `POST /user/create` — Create/register user
-- `GET /user/{user_id}` — Get user profile
-
-### Chat
-- `POST /chat` — Send chat message and get AI response
-
-### Quiz
-- `POST /quiz/generate` — Generate adaptive quiz
-- `POST /quiz/submit` — Submit quiz answers
-
-### History
-- `GET /history/{user_id}` — Get chat history
-- `GET /quiz-results/{user_id}` — Get quiz results
-
-### Progress
-- `GET /progress/{user_id}` — Get learner progress
-- `GET /progress/{user_id}/{topic}` — Get topic mastery
-
-### Recommendations
-- `GET /recommendations/{user_id}` — Get learning recommendations
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_AICES_USER_ID=user_001
+```
 
 ## Deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+### Vercel frontend
 
-### Quick Start
+1. Import the repository into Vercel.
+2. Set the root directory to `frontend`.
+3. Build command: `npm run build`
+4. Output directory: `dist`
+5. Add `VITE_API_BASE_URL` pointing to your Render backend URL.
 
-**Frontend** → Deploy to [Vercel](https://vercel.com)
-- Root directory: `frontend`
-- Build: `npm run build`
-- Output: `dist`
+### Render backend
 
-**Backend** → Deploy to [Render](https://render.com) or [Railway](https://railway.app)
-- Build: `pip install -r requirements.txt`
-- Start: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+1. Create a new Render web service from this repository.
+2. Use the included [`render.yaml`](render.yaml) or configure manually:
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+3. Set required environment variables:
+   - `OPENROUTER_API_KEY`
+   - `OPENROUTER_MODEL`
+   - `OPENROUTER_TIMEOUT_SECONDS`
+   - `ALLOWED_ORIGINS`
+   - `AICES_DB_PATH` or `DATABASE_URL`
 
-## Development
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the longer deployment walkthrough.
 
-### Running Tests
+## Screenshots
 
-```bash
-# Python syntax check
-python -B -m compileall backend
+Screenshot placeholders for a portfolio-ready repo:
 
-# Frontend build check
-cd frontend && npm run build
-```
+- Chat experience
+- Quiz flow
+- Learning dashboard
 
-### Code Style
+Add captured product images to `docs/` or a future `docs/assets/` folder and link them here.
 
-- **Backend:** Follow PEP 8 (FastAPI conventions)
-- **Frontend:** ESM modules, React best practices
+## Author
 
-## Future Improvements
+Omkar
 
-- [ ] User authentication (JWT)
-- [ ] PostgreSQL migration script
-- [ ] Advanced analytics dashboard
-- [ ] Spaced repetition algorithm
-- [ ] Mobile app (React Native)
-- [ ] Real-time collaboration
-- [ ] Offline mode with sync
-- [ ] Advanced LLM function calling
+- GitHub: [OMKAR580](https://github.com/OMKAR580)
+- Repository: [OMKAR580/Chatbot-AICES](https://github.com/OMKAR580/Chatbot-AICES)
 
 ## License
 
-MIT License — See LICENSE file for details
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Support
-
-For issues, feature requests, or questions:
-- Open an issue on GitHub
-- Check existing documentation
-- Review API endpoint examples
-
----
-
-**AICES** — Making adaptive learning accessible to everyone.
+This project is released under the [MIT License](LICENSE).

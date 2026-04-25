@@ -1,36 +1,40 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyc
-*.pyo
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Node / Vite
+node_modules/
 dist/
 build/
-*.egg
+frontend/.npm-cache/
 
-# FastAPI / Uvicorn
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
 .venv/
 venv/
 env/
 ENV/
 .python-version
 
-# SQLite databases (keep .gitkeep if you want empty dirs)
-*.db
-*.db-journal
-*.sqlite
-*.sqlite3
-data/
-sqlite_direct_test*
+# Local databases
+aices.db
+aices.db-journal
+backend/aices.db
+backend/aices.db-journal
+data/*.db
+data/*.db-journal
+sqlite_direct_test.db
+sqlite_direct_test.db-journal
 
-# Environment files
-.env
-.env.local
-.env.*.local
+# Logs and temp files
+*.log
+.tmp/
+.pip-cache/
 
-# IDE & Editor
+# Editor / OS files
 .vscode/
 .idea/
 *.swp
@@ -38,39 +42,3 @@ sqlite_direct_test*
 *~
 .DS_Store
 Thumbs.db
-*.sublime-project
-*.sublime-workspace
-
-# Temporary files
-.tmp/
-.pip-cache/
-*.tmp
-write_test.txt
-
-# Frontend (Node/Vite)
-frontend/node_modules/
-frontend/dist/
-frontend/build/
-frontend/.npm-cache/
-frontend/.env
-frontend/.env.local
-frontend/.env.*.local
-frontend/dist-ssr/
-frontend/.cache/
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-pnpm-debug.log*
-
-# Optional npm cache directory
-.npm
-
-# OS
-.DS_Store
-*.exe
-*.dmg
-*.app
